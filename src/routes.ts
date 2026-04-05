@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { LlmRole } from '@google/gemini-cli-core';
 import { authMiddleware } from './middleware.js';
-import { getServer } from './credentials.js';
+import { createServer } from './credentials.js';
 import { getOrCreateSession, listSessions, deleteSession } from './session.js';
 import { parseModelVariant, toGenerateContentParams } from './config.js';
 import crypto from 'node:crypto';
@@ -45,25 +45,28 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
 
     // Session support: use X-Session-Id header to maintain conversation context
     const requestSessionId = c.req.header('X-Session-Id');
-    let server;
-    let sessionId: string | undefined;
+    let sessionId: string;
+    let isTrackedSession = false;
 
     if (requestSessionId !== undefined) {
       // Client wants session support (even empty string means "create new session")
       const session = getOrCreateSession(requestSessionId || undefined);
-      server = session.server;
       sessionId = session.id;
+      isTrackedSession = true;
     } else {
-      // No session header: backward-compatible stateless mode
-      server = getServer();
+      // Stateless mode: force a random session ID for stealth, but don't track it in memory
+      sessionId = crypto.randomUUID();
     }
 
-    console.log(`[${action}] baseModel=${baseModel} useSearch=${useSearch} thinkingBudget=${thinkingBudget} session=${sessionId ?? 'none'}`);
+    // Dynamically create server to ensure User-Agent matches the requested model
+    const server = createServer(baseModel, sessionId);
+
+    console.log(`[${action}] baseModel=${baseModel} useSearch=${useSearch} thinkingBudget=${thinkingBudget} session=${sessionId}${isTrackedSession ? ' (tracked)' : ' (stealth)'}`);
 
     if (action === 'streamGenerateContent' || c.req.query('alt') === 'sse') {
       return streamSSE(c, async (stream) => {
-        // Set session ID header for streaming responses
-        if (sessionId) {
+        // Set session ID header for streaming responses if it's a tracked session
+        if (isTrackedSession) {
           c.header('X-Session-Id', sessionId);
         }
         const gen = await server.generateContentStream(params as never, userPromptId, LlmRole.MAIN);
@@ -73,7 +76,7 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
       });
     } else if (action === 'generateContent') {
       const response = await server.generateContent(params as never, userPromptId, LlmRole.MAIN);
-      if (sessionId) {
+      if (isTrackedSession) {
         c.header('X-Session-Id', sessionId);
       }
       return c.json(response);

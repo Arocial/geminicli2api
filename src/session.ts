@@ -1,10 +1,7 @@
-import { CodeAssistServer } from '@google/gemini-cli-core';
-import { getAuthClient, getProjectId, getUserTier, getUserTierName, getPaidTier, buildHttpOptions } from './credentials.js';
 import crypto from 'node:crypto';
 
 interface Session {
   id: string;
-  server: CodeAssistServer;
   createdAt: number;
   lastUsedAt: number;
 }
@@ -36,20 +33,9 @@ export function getOrCreateSession(sessionId?: string): Session {
 
   // Create new session
   const id = sessionId || crypto.randomUUID();
-  const httpOptions = buildHttpOptions();
-  const server = new CodeAssistServer(
-    getAuthClient(),
-    getProjectId(),
-    httpOptions,
-    id,
-    getUserTier(),
-    getUserTierName(),
-    getPaidTier(),
-  );
 
   const session: Session = {
     id,
-    server,
     createdAt: Date.now(),
     lastUsedAt: Date.now(),
   };

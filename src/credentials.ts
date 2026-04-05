@@ -31,7 +31,6 @@ let projectId: string;
 let userTier: UserTierId | undefined;
 let userTierName: string | undefined;
 let paidTier: GeminiUserTier | undefined;
-let defaultServer: CodeAssistServer;
 
 // Minimal config to satisfy getOauthClient and setupUser requirements.
 // getOauthClient uses: getProxy(), isBrowserLaunchSuppressed()
@@ -45,7 +44,7 @@ function createMinimalConfig() {
   };
 }
 
-export async function initServer(): Promise<CodeAssistServer> {
+export async function initServer(): Promise<void> {
   // Auto-confirm OAuth consent prompts (new in v0.36.0)
   coreEvents.on(CoreEvent.ConsentRequest, (payload: { onConfirm: (v: boolean) => void }) => {
     console.log('[auth] Auto-confirming consent request');
@@ -59,26 +58,17 @@ export async function initServer(): Promise<CodeAssistServer> {
   userTier = userData.userTier;
   userTierName = userData.userTierName;
   paidTier = userData.paidTier;
-  defaultServer = new CodeAssistServer(
+}
+
+/** Dynamically create a server instance with the correct User-Agent and Session ID */
+export function createServer(model: string, sessionId: string): CodeAssistServer {
+  return new CodeAssistServer(
     authClient,
     projectId,
-    cliHttpOptions,
-    undefined,
+    buildHttpOptions(model),
+    sessionId,
     userTier,
     userTierName,
     paidTier,
   );
-  return defaultServer;
 }
-
-/** Default server without session (backward compatible) */
-export function getServer(): CodeAssistServer {
-  return defaultServer;
-}
-
-/** Expose auth primitives for session-scoped server creation */
-export function getAuthClient() { return authClient; }
-export function getProjectId() { return projectId; }
-export function getUserTier() { return userTier; }
-export function getUserTierName() { return userTierName; }
-export function getPaidTier() { return paidTier; }
