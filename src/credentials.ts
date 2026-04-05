@@ -1,8 +1,13 @@
 import { getOauthClient, AuthType, CodeAssistServer } from '@google/gemini-cli-core';
 // setupUser is not re-exported from the main index
 import { setupUser } from '@google/gemini-cli-core/dist/src/code_assist/setup.js';
+import type { OAuth2Client } from 'google-auth-library';
+import type { UserTierId } from '@google/gemini-cli-core/dist/src/code_assist/types.js';
 
-let server: CodeAssistServer;
+let authClient: OAuth2Client;
+let projectId: string;
+let userTier: UserTierId | undefined;
+let defaultServer: CodeAssistServer;
 
 // getOauthClient only uses config.getProxy() and config.isBrowserLaunchSuppressed()
 function createMinimalConfig() {
@@ -15,18 +20,26 @@ function createMinimalConfig() {
 
 export async function initServer(): Promise<CodeAssistServer> {
   const config = createMinimalConfig();
-  const authClient = await getOauthClient(AuthType.LOGIN_WITH_GOOGLE, config as never);
+  authClient = await getOauthClient(AuthType.LOGIN_WITH_GOOGLE, config as never);
   const userData = await setupUser(authClient);
-  server = new CodeAssistServer(
+  projectId = userData.projectId;
+  userTier = userData.userTier;
+  defaultServer = new CodeAssistServer(
     authClient,
-    userData.projectId,
+    projectId,
     undefined,
     undefined,
-    userData.userTier,
+    userTier,
   );
-  return server;
+  return defaultServer;
 }
 
+/** Default server without session (backward compatible) */
 export function getServer(): CodeAssistServer {
-  return server;
+  return defaultServer;
 }
+
+/** Expose auth primitives for session-scoped server creation */
+export function getAuthClient() { return authClient; }
+export function getProjectId() { return projectId; }
+export function getUserTier() { return userTier; }

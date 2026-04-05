@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { authMiddleware } from './middleware.js';
 import { getServer } from './credentials.js';
+import { getOrCreateSession, listSessions, deleteSession } from './session.js';
 import { parseModelVariant, toGenerateContentParams } from './config.js';
 import crypto from 'node:crypto';
 
@@ -11,6 +12,17 @@ const routes = new Hono();
 routes.use('*', async (c, next) => {
   console.log(`[incoming] ${c.req.method} ${c.req.path}`);
   await next();
+});
+
+// Session management endpoints
+routes.get('/sessions', authMiddleware, (c) => {
+  return c.json(listSessions());
+});
+
+routes.delete('/sessions/:id', authMiddleware, (c) => {
+  const id = c.req.param('id')!;
+  const deleted = deleteSession(id);
+  return deleted ? c.json({ ok: true }) : c.json({ error: 'Session not found' }, 404);
 });
 
 routes.post('/v1beta/models/*', authMiddleware, async (c) => {
@@ -29,12 +41,30 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
     const { baseModel, useSearch, thinkingBudget } = parseModelVariant(model);
     const params = toGenerateContentParams(baseModel, body, { useSearch, thinkingBudget });
     const userPromptId = crypto.randomUUID();
-    const server = getServer();
 
-    console.log(`[${action}] baseModel=${baseModel} useSearch=${useSearch} thinkingBudget=${thinkingBudget}`);
+    // Session support: use X-Session-Id header to maintain conversation context
+    const requestSessionId = c.req.header('X-Session-Id');
+    let server;
+    let sessionId: string | undefined;
+
+    if (requestSessionId !== undefined) {
+      // Client wants session support (even empty string means "create new session")
+      const session = getOrCreateSession(requestSessionId || undefined);
+      server = session.server;
+      sessionId = session.id;
+    } else {
+      // No session header: backward-compatible stateless mode
+      server = getServer();
+    }
+
+    console.log(`[${action}] baseModel=${baseModel} useSearch=${useSearch} thinkingBudget=${thinkingBudget} session=${sessionId ?? 'none'}`);
 
     if (action === 'streamGenerateContent') {
       return streamSSE(c, async (stream) => {
+        // Set session ID header for streaming responses
+        if (sessionId) {
+          c.header('X-Session-Id', sessionId);
+        }
         const gen = await server.generateContentStream(params as never, userPromptId);
         for await (const chunk of gen) {
           await stream.writeSSE({ data: JSON.stringify(chunk) });
@@ -42,6 +72,9 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
       });
     } else if (action === 'generateContent') {
       const response = await server.generateContent(params as never, userPromptId);
+      if (sessionId) {
+        c.header('X-Session-Id', sessionId);
+      }
       return c.json(response);
     } else {
       return c.json({ error: `Unknown action: ${action}` }, 400);
