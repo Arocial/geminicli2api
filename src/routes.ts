@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
+import { LlmRole } from '@google/gemini-cli-core';
 import { authMiddleware } from './middleware.js';
 import { getServer } from './credentials.js';
 import { getOrCreateSession, listSessions, deleteSession } from './session.js';
@@ -59,19 +60,19 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
 
     console.log(`[${action}] baseModel=${baseModel} useSearch=${useSearch} thinkingBudget=${thinkingBudget} session=${sessionId ?? 'none'}`);
 
-    if (action === 'streamGenerateContent') {
+    if (action === 'streamGenerateContent' || c.req.query('alt') === 'sse') {
       return streamSSE(c, async (stream) => {
         // Set session ID header for streaming responses
         if (sessionId) {
           c.header('X-Session-Id', sessionId);
         }
-        const gen = await server.generateContentStream(params as never, userPromptId);
+        const gen = await server.generateContentStream(params as never, userPromptId, LlmRole.MAIN);
         for await (const chunk of gen) {
           await stream.writeSSE({ data: JSON.stringify(chunk) });
         }
       });
     } else if (action === 'generateContent') {
-      const response = await server.generateContent(params as never, userPromptId);
+      const response = await server.generateContent(params as never, userPromptId, LlmRole.MAIN);
       if (sessionId) {
         c.header('X-Session-Id', sessionId);
       }

@@ -18,7 +18,7 @@ On first launch, a Google OAuth login flow will be triggered. Once authenticated
 | `PORT` | Listen port | `3000` |
 | `PROXY_PASSWORD` | API access password (no auth if unset) | - |
 | `HTTPS_PROXY` / `HTTP_PROXY` | Proxy address | - |
-| `CLI_VERSION` | Gemini CLI version for User-Agent header | `0.1.22` |
+| `CLI_VERSION` | Gemini CLI version for User-Agent header | `0.36.0` |
 | `NO_BROWSER` | Set to `true` to suppress automatic browser launch | - |
 
 ## API
@@ -73,6 +73,14 @@ curl -X POST http://localhost:3000/v1beta/models/gemini-2.5-flash:generateConten
 
 Omitting the `X-Session-Id` header uses stateless mode (backward compatible). Sessions expire after 30 minutes of inactivity.
 
+### Health Check
+
+```
+GET /health
+```
+
+Returns `{"status": "ok"}`. Useful for Docker/Kubernetes health probes.
+
 ### Session Management
 
 ```bash
@@ -90,7 +98,7 @@ Both gcli2api and the official Gemini CLI use the same underlying transport — 
 | Dimension | Gemini CLI | gcli2api Proxy |
 |---|---|---|
 | **Endpoint & Auth** | `cloudcode-pa.googleapis.com/v1internal` + OAuth2 | Identical |
-| **User-Agent header** | `GeminiCLI/<version> (<platform>; <arch>)` via httpOptions | Matched (hardcoded version, override via `CLI_VERSION` env) |
+| **User-Agent header** | `GeminiCLI/<version>/<model> (<platform>; <arch>; <surface>)` via httpOptions | Matched (hardcoded version, override via `CLI_VERSION` env) |
 | **session_id** | Always set for multi-turn tracking | Set when using `X-Session-Id`; `undefined` in stateless mode |
 | **user_prompt_id** | Generated internally (UUID) | `crypto.randomUUID()` — same format |
 | **Request body** | Rich system prompts, tool declarations (read_file, write_file, shell, grep, glob, etc.), project context | Raw user-provided body — typically just conversation content |
@@ -99,7 +107,7 @@ Both gcli2api and the official Gemini CLI use the same underlying transport — 
 
 ### Key Differences
 
-1. **User-Agent header** (mitigated): The CLI sends `User-Agent: GeminiCLI/<version> (<platform>; <arch>)` on every request. gcli2api now sets the same header with a hardcoded default version (`0.1.22`). Override via the `CLI_VERSION` environment variable to match the installed `@google/gemini-cli-core` version. The `<platform>` and `<arch>` parts are derived from `process.platform`/`process.arch` at runtime, so they match automatically.
+1. **User-Agent header** (mitigated): The CLI sends `User-Agent: GeminiCLI/<version>/<model> (<platform>; <arch>; <surface>)` on every request. gcli2api now sets the same header with a hardcoded default version (`0.36.0`) and surface (`terminal`). Override via the `CLI_VERSION` environment variable to match the installed `@google/gemini-cli-core` version. The `<platform>` and `<arch>` parts are derived from `process.platform`/`process.arch` at runtime, so they match automatically.
 
 2. **Tool declarations**: The CLI always declares its built-in tool set (file operations, shell, search). The proxy forwards only what the client provides, which is usually nothing. This is the most distinctive signal at the request body level.
 
@@ -113,7 +121,7 @@ Both gcli2api and the official Gemini CLI use the same underlying transport — 
 
 | Signal | Status | Notes |
 |---|---|---|
-| User-Agent header | **Mitigated** | Hardcoded to `GeminiCLI/0.1.22`; override via `CLI_VERSION` env |
+| User-Agent header | **Mitigated** | Hardcoded to `GeminiCLI/0.36.0`; override via `CLI_VERSION` env |
 | session_id | **Mitigated** | Use `X-Session-Id` header for session support |
 | Tool declarations | Not mitigated | Would require injecting CLI tool schemas into every request |
 | System instruction | Not mitigated | Would require replicating CLI's system prompt |

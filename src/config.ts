@@ -69,6 +69,7 @@ export function toGenerateContentParams(
       ...generationConfig,
       safetySettings,
       tools: tools.length > 0 ? tools : undefined,
+      toolConfig: body.toolConfig,
       systemInstruction: body.systemInstruction,
       thinkingConfig,
     },

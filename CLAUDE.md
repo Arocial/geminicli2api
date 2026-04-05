@@ -35,7 +35,7 @@ npm start         # Run compiled output
 ## Key Architecture Decisions
 
 - Each session gets its own `CodeAssistServer` instance (the sessionId is baked into the constructor)
-- `credentials.ts` exposes `getAuthClient()`, `getProjectId()`, `getUserTier()` so `session.ts` can create session-scoped servers
+- `credentials.ts` exposes `getAuthClient()`, `getProjectId()`, `getUserTier()`, `getUserTierName()`, `getPaidTier()`, `buildHttpOptions()` so `session.ts` can create session-scoped servers
 - Without `X-Session-Id` header, requests use a shared stateless server (backward compatible)
 - All harm categories are set to `BLOCK_NONE` in config.ts
 - Default thinking budget is 8192 tokens
@@ -44,4 +44,5 @@ npm start         # Run compiled output
 
 - Route path parsing is manual (not Hono param patterns) due to the colon in `models/xxx:action`
 - `as never` casts are used when passing params to CodeAssistServer methods due to type mismatches between our constructed params and the internal types
-- `setupUser` is imported directly from `@google/gemini-cli-core/dist/src/code_assist/setup.js` because it's not re-exported from the package index
+- Since v0.36.0, all needed exports (`setupUser`, `coreEvents`, `CoreEvent`, `LlmRole`) are available from the main `@google/gemini-cli-core` index
+- `coreEvents.on(CoreEvent.ConsentRequest, ...)` is used to auto-confirm OAuth consent prompts
