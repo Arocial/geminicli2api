@@ -4,6 +4,17 @@ import { setupUser } from '@google/gemini-cli-core/dist/src/code_assist/setup.js
 import type { OAuth2Client } from 'google-auth-library';
 import type { UserTierId } from '@google/gemini-cli-core/dist/src/code_assist/types.js';
 
+// Match the User-Agent header sent by the real Gemini CLI.
+// Format: GeminiCLI/<version> (<platform>; <arch>)
+// Update this when upgrading @google/gemini-cli-core.
+const DEFAULT_CLI_VERSION = '0.1.22';
+const cliVersion = process.env.CLI_VERSION || DEFAULT_CLI_VERSION;
+export const cliHttpOptions = {
+  headers: {
+    'User-Agent': `GeminiCLI/${cliVersion} (${process.platform}; ${process.arch})`,
+  },
+};
+
 let authClient: OAuth2Client;
 let projectId: string;
 let userTier: UserTierId | undefined;
@@ -27,7 +38,7 @@ export async function initServer(): Promise<CodeAssistServer> {
   defaultServer = new CodeAssistServer(
     authClient,
     projectId,
-    undefined,
+    cliHttpOptions,
     undefined,
     userTier,
   );

@@ -18,6 +18,7 @@ On first launch, a Google OAuth login flow will be triggered. Once authenticated
 | `PORT` | Listen port | `3000` |
 | `PROXY_PASSWORD` | API access password (no auth if unset) | - |
 | `HTTPS_PROXY` / `HTTP_PROXY` | Proxy address | - |
+| `CLI_VERSION` | Gemini CLI version for User-Agent header | `0.1.22` |
 | `NO_BROWSER` | Set to `true` to suppress automatic browser launch | - |
 
 ## API
@@ -89,7 +90,7 @@ Both gcli2api and the official Gemini CLI use the same underlying transport — 
 | Dimension | Gemini CLI | gcli2api Proxy |
 |---|---|---|
 | **Endpoint & Auth** | `cloudcode-pa.googleapis.com/v1internal` + OAuth2 | Identical |
-| **User-Agent header** | `GeminiCLI/<version> (<platform>; <arch>)` via httpOptions | **Missing** — httpOptions not set |
+| **User-Agent header** | `GeminiCLI/<version> (<platform>; <arch>)` via httpOptions | Matched (hardcoded version, override via `CLI_VERSION` env) |
 | **session_id** | Always set for multi-turn tracking | Set when using `X-Session-Id`; `undefined` in stateless mode |
 | **user_prompt_id** | Generated internally (UUID) | `crypto.randomUUID()` — same format |
 | **Request body** | Rich system prompts, tool declarations (read_file, write_file, shell, grep, glob, etc.), project context | Raw user-provided body — typically just conversation content |
@@ -98,7 +99,7 @@ Both gcli2api and the official Gemini CLI use the same underlying transport — 
 
 ### Key Differences
 
-1. **User-Agent header**: The CLI sets `User-Agent: GeminiCLI/<version> (<platform>; <arch>)` via `httpOptions.headers` on every request to `cloudcode-pa.googleapis.com`. gcli2api creates `CodeAssistServer` with `httpOptions = undefined`, so this header is absent. This is the **easiest server-side detection signal** — a simple header check.
+1. **User-Agent header** (mitigated): The CLI sends `User-Agent: GeminiCLI/<version> (<platform>; <arch>)` on every request. gcli2api now sets the same header with a hardcoded default version (`0.1.22`). Override via the `CLI_VERSION` environment variable to match the installed `@google/gemini-cli-core` version. The `<platform>` and `<arch>` parts are derived from `process.platform`/`process.arch` at runtime, so they match automatically.
 
 2. **Tool declarations**: The CLI always declares its built-in tool set (file operations, shell, search). The proxy forwards only what the client provides, which is usually nothing. This is the most distinctive signal at the request body level.
 
@@ -108,11 +109,17 @@ Both gcli2api and the official Gemini CLI use the same underlying transport — 
 
 5. **Request cadence**: The CLI exhibits characteristic function-calling patterns (generate → tool call → tool result → generate). Pure API usage tends to be single-shot or simple multi-turn.
 
-### Mitigation
+### Mitigation Status
 
-- **Set httpOptions with User-Agent**: Pass `{ headers: { 'User-Agent': 'GeminiCLI/<version> (<platform>; <arch>)' } }` when constructing `CodeAssistServer` to match the CLI's header fingerprint.
-- Always use session support (`X-Session-Id` header) to ensure `session_id` is present in requests.
-- With User-Agent and session_id addressed, remaining detection would require **behavioral analysis** of request content patterns (tools, system instruction), not simple header/field checks.
+| Signal | Status | Notes |
+|---|---|---|
+| User-Agent header | **Mitigated** | Hardcoded to `GeminiCLI/0.1.22`; override via `CLI_VERSION` env |
+| session_id | **Mitigated** | Use `X-Session-Id` header for session support |
+| Tool declarations | Not mitigated | Would require injecting CLI tool schemas into every request |
+| System instruction | Not mitigated | Would require replicating CLI's system prompt |
+| Request cadence | Not mitigated | Inherent to usage pattern |
+
+With User-Agent and session_id addressed, remaining detection requires **behavioral analysis** of request content patterns, not simple header/field checks.
 
 ## Docker
 
