@@ -9,13 +9,13 @@ npm install
 npm run dev
 ```
 
-On first launch, a Google OAuth login flow will be triggered. Once authenticated, the server listens on `http://localhost:3000`.
+On first launch, a Google OAuth login flow will be triggered. Once authenticated, the server listens on `http://localhost:3400`.
 
 ## Environment Variables
 
 | Variable | Description | Default |
 |---|---|---|
-| `PORT` | Listen port | `3000` |
+| `PORT` | Listen port | `3400` |
 | `PROXY_PASSWORD` | API access password (no auth if unset) | - |
 | `HTTPS_PROXY` / `HTTP_PROXY` | Proxy address | - |
 | `CLI_VERSION` | Gemini CLI version for User-Agent header | `0.36.0` |
@@ -33,7 +33,7 @@ POST /v1beta/models/{model}:streamGenerateContent
 Request body follows the standard Gemini API format:
 
 ```bash
-curl -X POST http://localhost:3000/v1beta/models/gemini-2.5-flash:generateContent \
+curl -X POST http://localhost:3400/v1beta/models/gemini-2.5-flash:generateContent \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <PROXY_PASSWORD>" \
   -d '{
@@ -59,13 +59,13 @@ Use the `X-Session-Id` request header to maintain multi-turn conversation contex
 
 ```bash
 # Create a new session (send empty value; response header returns the assigned session ID)
-curl -i -X POST http://localhost:3000/v1beta/models/gemini-2.5-flash:generateContent \
+curl -i -X POST http://localhost:3400/v1beta/models/gemini-2.5-flash:generateContent \
   -H "Content-Type: application/json" \
   -H "X-Session-Id: " \
   -d '{"contents": [{"role": "user", "parts": [{"text": "Hello"}]}]}'
 
 # Reuse an existing session
-curl -X POST http://localhost:3000/v1beta/models/gemini-2.5-flash:generateContent \
+curl -X POST http://localhost:3400/v1beta/models/gemini-2.5-flash:generateContent \
   -H "Content-Type: application/json" \
   -H "X-Session-Id: <returned-uuid>" \
   -d '{"contents": [{"role": "user", "parts": [{"text": "What did I just say?"}]}]}'

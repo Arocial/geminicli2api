@@ -2,9 +2,9 @@ services:
   gcli2api:
     build: .
     ports:
-      - "3000:3000"
+      - "3400:3400"
     environment:
-      - PORT=3000
+      - PORT=3400
       - PROXY_PASSWORD=${PROXY_PASSWORD:-}
     volumes:
       - ~/.config/google:/root/.config/google
