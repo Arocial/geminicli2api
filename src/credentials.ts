@@ -41,6 +41,8 @@ function createMinimalConfig() {
     isBrowserLaunchSuppressed: () =>
       process.env.NO_BROWSER === 'true' || process.env.NO_BROWSER === '1',
     getValidationHandler: () => undefined,
+    getAcpMode: () => false,
+    isInteractive: () => true,
   };
 }
 
