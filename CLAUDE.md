@@ -20,7 +20,7 @@ src/
 ├── credentials.ts  # OAuth init via gemini-cli-core, exposes auth primitives
 ├── session.ts      # Session manager: maps sessionId → CodeAssistServer instances
 ├── config.ts       # Model variant parsing (-search/-nothinking/-maxthinking), safety settings
-└── middleware.ts   # PROXY_PASSWORD Bearer token auth middleware
+└── middleware.ts   # GCA_PASSWORD Bearer token auth middleware
 ```
 
 ## Build & Run

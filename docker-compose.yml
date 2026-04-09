@@ -4,8 +4,8 @@ services:
     ports:
       - "3400:3400"
     environment:
-      - PORT=3400
-      - PROXY_PASSWORD=${PROXY_PASSWORD:-}
+      - GCA_PORT=3400
+      - GCA_PASSWORD=${GCA_PASSWORD:-}
     volumes:
       - ~/.config/google:/root/.config/google
     restart: unless-stopped

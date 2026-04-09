@@ -15,8 +15,8 @@ On first launch, a Google OAuth login flow will be triggered. Once authenticated
 
 | Variable | Description | Default |
 |---|---|---|
-| `PORT` | Listen port | `3400` |
-| `PROXY_PASSWORD` | API access password (no auth if unset) | - |
+| `GCAPORT` | Listen port | `3400` |
+| `GCA_PASSWORD` | API access password (no auth if unset) | - |
 | `HTTPS_PROXY` / `HTTP_PROXY` | Proxy address | - |
 | `CLI_VERSION` | Gemini CLI version for User-Agent header | `0.36.0` |
 | `NO_BROWSER` | Set to `true` to suppress automatic browser launch | - |
@@ -35,7 +35,7 @@ Request body follows the standard Gemini API format:
 ```bash
 curl -X POST http://localhost:3400/v1beta/models/gemini-2.5-flash:generateContent \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <PROXY_PASSWORD>" \
+  -H "Authorization: Bearer <GCA_PASSWORD>" \
   -d '{
     "contents": [{"role": "user", "parts": [{"text": "Hello"}]}]
   }'

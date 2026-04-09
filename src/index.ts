@@ -2,7 +2,7 @@ import { serve } from '@hono/node-server';
 import { app } from './server.js';
 import { initServer } from './credentials.js';
 
-const port = parseInt(process.env.PORT ?? '3400', 10);
+const port = parseInt(process.env.GCA_PORT ?? '3400', 10);
 
 await initServer();
 console.log(`geminicli2api listening on port ${port}`);

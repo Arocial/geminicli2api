@@ -1,7 +1,7 @@
 import type { Context, Next } from 'hono';
 
 export async function authMiddleware(c: Context, next: Next) {
-  const password = process.env.PROXY_PASSWORD;
+  const password = process.env.GCA_PASSWORD;
   if (!password) {
     return next();
   }
