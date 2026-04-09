@@ -136,13 +136,31 @@ Both geminicli2api and the official Gemini CLI use the same underlying transport
 
 With User-Agent and session_id addressed, remaining detection requires **behavioral analysis** of request content patterns, not simple header/field checks.
 
-## Docker
+## Docker Compose
 
 ```bash
 docker compose up -d
 ```
 
-Requires mounting `~/.config/google` to reuse existing OAuth credentials.
+### First-time login
+
+The first launch will fail because OAuth credentials don't exist yet. You need to manually exec into the container to complete Google login:
+
+```bash
+# 1. Start the container (it will crash-loop waiting for auth)
+docker compose up -d
+
+# 2. Exec into the container and run gemini CLI to trigger OAuth login
+docker compose exec geminicli2api gemini
+
+# 3. Follow the terminal prompts to complete Google OAuth login
+#    Credentials will be saved to the gemini-data volume at /root/.gemini/
+
+# 4. Restart the container
+docker compose restart geminicli2api
+```
+
+After login, credentials are persisted in the `gemini-data` Docker volume and will be reused automatically on subsequent restarts.
 
 ## Build
 

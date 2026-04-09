@@ -9,6 +9,7 @@ RUN npm run build
 FROM node:22-slim
 WORKDIR /app
 COPY package.json package-lock.json* ./
+RUN npm install -g @google/gemini-cli
 RUN npm install --omit=dev
 COPY --from=builder /app/dist ./dist
 EXPOSE 3400

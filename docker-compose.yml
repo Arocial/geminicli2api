@@ -6,6 +6,7 @@ services:
     environment:
       - GCA_PORT=3400
       - GCA_PASSWORD=${GCA_PASSWORD:-}
+      - NO_BROWSER=true
     volumes:
       - gemini-data:/root/.gemini/
     restart: unless-stopped
