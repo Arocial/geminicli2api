@@ -32,10 +32,17 @@ POST /v1beta/models/{model}:streamGenerateContent
 
 Request body follows the standard Gemini API format:
 
+Authentication is checked only when `GCA_PASSWORD` is set. Supported formats (standard Gemini API):
+
+| Method | Example |
+|---|---|
+| `x-goog-api-key` header | `-H "x-goog-api-key: <GCA_PASSWORD>"` |
+| `key` query parameter | `?key=<GCA_PASSWORD>` |
+
 ```bash
 curl -X POST http://localhost:3400/v1beta/models/gemini-2.5-flash:generateContent \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <GCA_PASSWORD>" \
+  -H "x-goog-api-key: <GCA_PASSWORD>" \
   -d '{
     "contents": [{"role": "user", "parts": [{"text": "Hello"}]}]
   }'
