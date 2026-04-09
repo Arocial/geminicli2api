@@ -1,4 +1,4 @@
-# gcli2api
+# geminicli2api
 
 Gemini CLI to API Proxy — a proxy server built on `@google/gemini-cli-core` that reuses the official CLI's OAuth authentication and `CodeAssistServer` to expose native Gemini API endpoints.
 
@@ -93,9 +93,9 @@ DELETE /sessions/:id
 
 ## Detection Risk Analysis
 
-Both gcli2api and the official Gemini CLI use the same underlying transport — `CodeAssistServer` from `@google/gemini-cli-core` — which sends requests to `cloudcode-pa.googleapis.com/v1internal` with identical OAuth tokens and HTTP client behavior. However, there are behavioral differences that could be used for fingerprinting:
+Both geminicli2api and the official Gemini CLI use the same underlying transport — `CodeAssistServer` from `@google/gemini-cli-core` — which sends requests to `cloudcode-pa.googleapis.com/v1internal` with identical OAuth tokens and HTTP client behavior. However, there are behavioral differences that could be used for fingerprinting:
 
-| Dimension | Gemini CLI | gcli2api Proxy |
+| Dimension | Gemini CLI | geminicli2api Proxy |
 |---|---|---|
 | **Endpoint & Auth** | `cloudcode-pa.googleapis.com/v1internal` + OAuth2 | Identical |
 | **User-Agent header** | `GeminiCLI/<version>/<model> (<platform>; <arch>; <surface>)` via httpOptions | Matched (hardcoded version, override via `CLI_VERSION` env) |
@@ -107,7 +107,7 @@ Both gcli2api and the official Gemini CLI use the same underlying transport — 
 
 ### Key Differences
 
-1. **User-Agent header** (mitigated): The CLI sends `User-Agent: GeminiCLI/<version>/<model> (<platform>; <arch>; <surface>)` on every request. gcli2api now sets the same header with a hardcoded default version (`0.36.0`) and surface (`terminal`). Override via the `CLI_VERSION` environment variable to match the installed `@google/gemini-cli-core` version. The `<platform>` and `<arch>` parts are derived from `process.platform`/`process.arch` at runtime, so they match automatically.
+1. **User-Agent header** (mitigated): The CLI sends `User-Agent: GeminiCLI/<version>/<model> (<platform>; <arch>; <surface>)` on every request. geminicli2api now sets the same header with a hardcoded default version (`0.36.0`) and surface (`terminal`). Override via the `CLI_VERSION` environment variable to match the installed `@google/gemini-cli-core` version. The `<platform>` and `<arch>` parts are derived from `process.platform`/`process.arch` at runtime, so they match automatically.
 
 2. **Tool declarations**: The CLI always declares its built-in tool set (file operations, shell, search). The proxy forwards only what the client provides, which is usually nothing. This is the most distinctive signal at the request body level.
 

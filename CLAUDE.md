@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-gcli2api is a proxy server that wraps `@google/gemini-cli-core` to expose native Gemini API endpoints. It reuses the official CLI's OAuth authentication and CodeAssistServer for API communication.
+geminicli2api is a proxy server that wraps `@google/gemini-cli-core` to expose native Gemini API endpoints. It reuses the official CLI's OAuth authentication and CodeAssistServer for API communication.
 
 ## Tech Stack
 

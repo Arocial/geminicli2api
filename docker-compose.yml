@@ -1,5 +1,5 @@
 services:
-  gcli2api:
+  geminicli2api:
     build: .
     ports:
       - "3400:3400"

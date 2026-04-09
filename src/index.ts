@@ -5,7 +5,7 @@ import { initServer } from './credentials.js';
 const port = parseInt(process.env.PORT ?? '3400', 10);
 
 await initServer();
-console.log(`gcli2api listening on port ${port}`);
+console.log(`geminicli2api listening on port ${port}`);
 serve({
   fetch: async (req, info) => {
     console.log(`[serve] ${req.method} ${req.url}`);

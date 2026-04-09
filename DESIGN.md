@@ -1,4 +1,4 @@
-# gcli2api - Gemini CLI to API Proxy
+# geminicli2api - Gemini CLI to API Proxy
 
 ## Overview
 
@@ -7,7 +7,7 @@
 ## Project Structure
 
 ```
-gcli2api/
+geminicli2api/
 ├── src/
 │   ├── index.ts              # 入口，启动服务
 │   ├── server.ts             # Hono 应用，路由注册

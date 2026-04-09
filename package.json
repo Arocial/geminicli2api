@@ -1,5 +1,5 @@
 {
-  "name": "gcli2api",
+  "name": "geminicli2api",
   "version": "1.0.0",
   "description": "Gemini CLI to API Proxy",
   "type": "module",
