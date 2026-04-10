@@ -9,12 +9,6 @@ import crypto from 'node:crypto';
 
 const routes = new Hono();
 
-// Debug: log all incoming requests
-routes.use('*', async (c, next) => {
-  console.log(`[incoming] ${c.req.method} ${c.req.path}`);
-  await next();
-});
-
 // Session management endpoints
 routes.get('/sessions', authMiddleware, (c) => {
   return c.json(listSessions());
