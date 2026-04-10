@@ -1,3 +1,4 @@
+import { createRequire } from 'module';
 import {
   getOauthClient,
   AuthType,
@@ -8,11 +9,12 @@ import {
 } from '@google/gemini-cli-core';
 import type { UserTierId, GeminiUserTier } from '@google/gemini-cli-core/dist/src/code_assist/types.js';
 
-// Match the User-Agent header sent by the real Gemini CLI (v0.36.0+).
+const require = createRequire(import.meta.url);
+const { version: DEFAULT_CLI_VERSION } = require('@google/gemini-cli-core/package.json');
+
+// Match the User-Agent header sent by the real Gemini CLI.
 // Format: GeminiCLI/<version>/<model> (<platform>; <arch>; <surface>)
 // The model placeholder is filled per-request; here we use a default.
-// Update DEFAULT_CLI_VERSION when upgrading @google/gemini-cli-core.
-const DEFAULT_CLI_VERSION = '0.36.0';
 const cliVersion = process.env.CLI_VERSION || DEFAULT_CLI_VERSION;
 
 export function buildHttpOptions(model = 'gemini-2.5-flash') {

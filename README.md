@@ -18,7 +18,7 @@ On first launch, a Google OAuth login flow will be triggered. Once authenticated
 | `GCAPORT` | Listen port | `3400` |
 | `GCA_PASSWORD` | API access password (no auth if unset) | - |
 | `HTTPS_PROXY` / `HTTP_PROXY` | Proxy address | - |
-| `CLI_VERSION` | Gemini CLI version for User-Agent header | `0.36.0` |
+| `CLI_VERSION` | Gemini CLI version for User-Agent header | Auto-detected |
 | `NO_BROWSER` | Set to `true` to suppress automatic browser launch | - |
 
 ## API
@@ -114,7 +114,7 @@ Both geminicli2api and the official Gemini CLI use the same underlying transport
 
 ### Key Differences
 
-1. **User-Agent header** (mitigated): The CLI sends `User-Agent: GeminiCLI/<version>/<model> (<platform>; <arch>; <surface>)` on every request. geminicli2api now sets the same header with a hardcoded default version (`0.36.0`) and surface (`terminal`). Override via the `CLI_VERSION` environment variable to match the installed `@google/gemini-cli-core` version. The `<platform>` and `<arch>` parts are derived from `process.platform`/`process.arch` at runtime, so they match automatically.
+1. **User-Agent header** (mitigated): The CLI sends `User-Agent: GeminiCLI/<version>/<model> (<platform>; <arch>; <surface>)` on every request. geminicli2api now sets the same header with an auto-detected version and surface (`terminal`). Override via the `CLI_VERSION` environment variable if needed. The `<platform>` and `<arch>` parts are derived from `process.platform`/`process.arch` at runtime, so they match automatically.
 
 2. **Tool declarations**: The CLI always declares its built-in tool set (file operations, shell, search). The proxy forwards only what the client provides, which is usually nothing. This is the most distinctive signal at the request body level.
 
@@ -128,7 +128,7 @@ Both geminicli2api and the official Gemini CLI use the same underlying transport
 
 | Signal | Status | Notes |
 |---|---|---|
-| User-Agent header | **Mitigated** | Hardcoded to `GeminiCLI/0.36.0`; override via `CLI_VERSION` env |
+| User-Agent header | **Mitigated** | Auto-detected version; override via `CLI_VERSION` env |
 | session_id | **Mitigated** | Use `X-Session-Id` header for session support |
 | Tool declarations | Not mitigated | Would require injecting CLI tool schemas into every request |
 | System instruction | Not mitigated | Would require replicating CLI's system prompt |
