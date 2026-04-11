@@ -1,6 +1,7 @@
 services:
   geminicli2api:
     build: .
+    image: ghcr.io/arocial/geminicli2api:latest
     ports:
       - "3400:3400"
     environment:
