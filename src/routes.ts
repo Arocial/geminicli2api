@@ -58,14 +58,24 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
     console.log(`[${action}] baseModel=${baseModel} useSearch=${useSearch} thinkingBudget=${thinkingBudget} session=${sessionId}${isTrackedSession ? ' (tracked)' : ' (stealth)'}`);
 
     if (action === 'streamGenerateContent' || c.req.query('alt') === 'sse') {
+      // Await the generator creation outside streamSSE to catch initial errors (like 429)
+      const gen = await server.generateContentStream(params as never, userPromptId, LlmRole.MAIN);
+
+      // Set session ID header for streaming responses if it's a tracked session
+      if (isTrackedSession) {
+        c.header('X-Session-Id', sessionId);
+      }
+
       return streamSSE(c, async (stream) => {
-        // Set session ID header for streaming responses if it's a tracked session
-        if (isTrackedSession) {
-          c.header('X-Session-Id', sessionId);
-        }
-        const gen = await server.generateContentStream(params as never, userPromptId, LlmRole.MAIN);
-        for await (const chunk of gen) {
-          await stream.writeSSE({ data: JSON.stringify(chunk) });
+        try {
+          for await (const chunk of gen) {
+            await stream.writeSSE({ data: JSON.stringify(chunk) });
+          }
+        } catch (err: any) {
+          console.error(`[${action}] stream iteration error:`, err);
+          // If an error occurs during streaming, we can't change the HTTP status code anymore.
+          // We can only close the stream or send an error event.
+          // Standard Gemini API doesn't have a standard SSE error format, so we just end the stream.
         }
       });
     } else if (action === 'generateContent') {
@@ -79,7 +89,16 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
     }
   } catch (err: any) {
     const status = err?.status ?? err?.code ?? 500;
-    const upstream = err?.response?.data;
+    let upstream = err?.response?.data;
+    
+    if (typeof upstream === 'string') {
+      try {
+        upstream = JSON.parse(upstream);
+      } catch (e) {
+        upstream = { error: upstream };
+      }
+    }
+    
     console.error(`[${action}] error (${status}):`, err);
     return c.json(upstream ?? { error: String(err) }, status);
   }
