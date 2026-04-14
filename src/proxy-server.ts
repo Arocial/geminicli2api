@@ -6,35 +6,12 @@ import { Readable } from 'node:stream';
 
 export interface RawStreamResult {
   status: number;
-  headers: Record<string, string>;
   stream: AsyncGenerator<unknown>;
 }
 
 export interface RawUnaryResult {
   status: number;
-  headers: Record<string, string>;
   body: unknown;
-}
-
-/** Headers worth forwarding from the upstream v1internal response. */
-const PASSTHROUGH_HEADERS = [
-  'x-request-id',
-  'x-goog-request-id',
-  'x-debug-tracking-id',
-  'x-ratelimit-limit',
-  'x-ratelimit-remaining',
-  'x-ratelimit-reset',
-  'grpc-status',
-  'grpc-message',
-];
-
-function pickHeaders(raw: Record<string, unknown>): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const key of PASSTHROUGH_HEADERS) {
-    const v = raw[key];
-    if (v != null) out[key] = String(v);
-  }
-  return out;
 }
 
 /**
@@ -69,7 +46,6 @@ export class ProxyCodeAssistServer extends CodeAssistServer {
     });
 
     const status = res.status;
-    const headers = pickHeaders(res.headers ?? {});
 
     async function* parseSSE(data: AsyncIterable<Buffer>) {
       const rl = readline.createInterface({
@@ -97,7 +73,6 @@ export class ProxyCodeAssistServer extends CodeAssistServer {
 
     return {
       status,
-      headers,
       stream: parseSSE(res.data as AsyncIterable<Buffer>),
     };
   }
@@ -138,11 +113,9 @@ export class ProxyCodeAssistServer extends CodeAssistServer {
     });
 
     const status = res.status;
-    const headers = pickHeaders(res.headers ?? {});
     const data = res.data as { response?: unknown };
     return {
       status,
-      headers,
       body: data.response ?? data,
     };
   }

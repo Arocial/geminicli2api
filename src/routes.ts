@@ -19,20 +19,6 @@ routes.delete('/sessions/:id', authMiddleware, (c) => {
   return deleted ? c.json({ ok: true }) : c.json({ error: 'Session not found' }, 404);
 });
 
-/** Set upstream headers + session header on the outgoing response. */
-function setResponseHeaders(
-  c: { header: (k: string, v: string) => void },
-  upstream: Record<string, string>,
-  sessionId?: string,
-) {
-  for (const [k, v] of Object.entries(upstream)) {
-    c.header(k, v);
-  }
-  if (sessionId) {
-    c.header('X-Session-Id', sessionId);
-  }
-}
-
 routes.post('/v1beta/models/*', authMiddleware, async (c) => {
   const rest = c.req.path.replace('/v1beta/models/', '');
   const colonIdx = rest.lastIndexOf(':');
@@ -69,9 +55,11 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
     console.log(`[${action}] baseModel=${baseModel} useSearch=${useSearch} thinkingBudget=${thinkingBudget} session=${sessionId}${isTrackedSession ? ' (tracked)' : ' (stealth)'}`);
 
     if (action === 'streamGenerateContent' || c.req.query('alt') === 'sse') {
-      const { headers, stream } = await server.streamRaw(params as never, userPromptId);
+      const { stream } = await server.streamRaw(params as never, userPromptId);
 
-      setResponseHeaders(c, headers, isTrackedSession ? sessionId : undefined);
+      if (isTrackedSession) {
+        c.header('X-Session-Id', sessionId);
+      }
 
       return streamSSE(c, async (sseStream) => {
         try {
@@ -83,9 +71,11 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
         }
       });
     } else if (action === 'generateContent') {
-      const { status, headers, body: responseBody } = await server.requestRaw(params as never, userPromptId);
+      const { status, body: responseBody } = await server.requestRaw(params as never, userPromptId);
 
-      setResponseHeaders(c, headers, isTrackedSession ? sessionId : undefined);
+      if (isTrackedSession) {
+        c.header('X-Session-Id', sessionId);
+      }
 
       return c.json(responseBody as object, status as 200);
     } else {
