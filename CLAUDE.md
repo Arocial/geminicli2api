@@ -37,7 +37,6 @@ npm start         # Run compiled output
 - Each session gets its own `CodeAssistServer` instance (the sessionId is baked into the constructor)
 - `credentials.ts` exposes `getAuthClient()`, `getProjectId()`, `getUserTier()`, `getUserTierName()`, `getPaidTier()`, `buildHttpOptions()` so `session.ts` can create session-scoped servers
 - Without `X-Session-Id` header, requests use a shared stateless server (backward compatible)
-- All harm categories are set to `BLOCK_NONE` in config.ts
 - Default thinking budget is 8192 tokens
 
 ## Common Patterns

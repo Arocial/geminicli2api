@@ -25,19 +25,11 @@ export function parseModelVariant(model: string): ModelVariant {
   return { baseModel, useSearch, thinkingBudget };
 }
 
-const ALL_HARM_CATEGORIES = [
-  'HARM_CATEGORY_HARASSMENT',
-  'HARM_CATEGORY_HATE_SPEECH',
-  'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-  'HARM_CATEGORY_DANGEROUS_CONTENT',
-  'HARM_CATEGORY_CIVIC_INTEGRITY',
-];
-
 /**
  * Convert raw Gemini REST API body into GenerateContentParameters format.
  *
- * Incoming REST body has top-level: contents, generationConfig, safetySettings, tools, systemInstruction, etc.
- * CodeAssistServer expects: { model, contents, config: { safetySettings, tools, thinkingConfig, ... } }
+ * Incoming REST body has top-level: contents, generationConfig, tools, systemInstruction, etc.
+ * CodeAssistServer expects: { model, contents, config: { tools, thinkingConfig, ... } }
  */
 export function toGenerateContentParams(
   model: string,
@@ -46,10 +38,6 @@ export function toGenerateContentParams(
 ) {
   const generationConfig = (body.generationConfig as Record<string, unknown>) ?? {};
   const tools = (body.tools as unknown[]) ?? [];
-  const safetySettings = ALL_HARM_CATEGORIES.map((category) => ({
-    category,
-    threshold: 'BLOCK_NONE',
-  }));
 
   // Thinking config
   const thinkingConfig =
@@ -67,7 +55,6 @@ export function toGenerateContentParams(
     contents: body.contents,
     config: {
       ...generationConfig,
-      safetySettings,
       tools: tools.length > 0 ? tools : undefined,
       toolConfig: body.toolConfig,
       systemInstruction: body.systemInstruction,
