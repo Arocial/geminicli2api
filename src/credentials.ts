@@ -6,6 +6,7 @@ import {
   setupUser,
   coreEvents,
   CoreEvent,
+  UserAccountManager,
 } from '@google/gemini-cli-core';
 import type { UserTierId, GeminiUserTier } from '@google/gemini-cli-core/dist/src/code_assist/types.js';
 
@@ -48,7 +49,12 @@ function createMinimalConfig() {
   };
 }
 
-export async function initServer(): Promise<void> {
+export interface AuthInfo {
+  email: string | null;
+  tierName: string | undefined;
+}
+
+export async function initServer(): Promise<AuthInfo> {
   // Auto-confirm OAuth consent prompts (new in v0.36.0)
   coreEvents.on(CoreEvent.ConsentRequest, (payload: { onConfirm: (v: boolean) => void }) => {
     console.log('[auth] Auto-confirming consent request');
@@ -62,6 +68,11 @@ export async function initServer(): Promise<void> {
   userTier = userData.userTier;
   userTierName = userData.userTierName;
   paidTier = userData.paidTier;
+
+  const accountManager = new UserAccountManager();
+  const email = accountManager.getCachedGoogleAccount();
+
+  return { email, tierName: userTierName };
 }
 
 /** Dynamically create a server instance with the correct User-Agent and Session ID */
