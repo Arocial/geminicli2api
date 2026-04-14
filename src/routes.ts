@@ -3,7 +3,7 @@ import { streamSSE } from 'hono/streaming';
 import { LlmRole } from '@google/gemini-cli-core';
 import { authMiddleware } from './middleware.js';
 import { createServer } from './credentials.js';
-import { getOrCreateSession, listSessions, deleteSession } from './session.js';
+import { getOrCreateSession, getOrCreateServer, listSessions, deleteSession } from './session.js';
 import { parseModelVariant, toGenerateContentParams } from './config.js';
 import crypto from 'node:crypto';
 
@@ -41,19 +41,19 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
     const requestSessionId = c.req.header('X-Session-Id');
     let sessionId: string;
     let isTrackedSession = false;
+    let server;
 
     if (requestSessionId !== undefined) {
-      // Client wants session support (even empty string means "create new session")
+      // Client wants session support — reuse cached CodeAssistServer
+      isTrackedSession = true;
       const session = getOrCreateSession(requestSessionId || undefined);
       sessionId = session.id;
-      isTrackedSession = true;
+      server = getOrCreateServer(session, baseModel);
     } else {
-      // Stateless mode: force a random session ID for stealth, but don't track it in memory
+      // Stateless mode: ephemeral server, not tracked in session store
       sessionId = crypto.randomUUID();
+      server = createServer(baseModel, sessionId);
     }
-
-    // Dynamically create server to ensure User-Agent matches the requested model
-    const server = createServer(baseModel, sessionId);
 
     console.log(`[${action}] baseModel=${baseModel} useSearch=${useSearch} thinkingBudget=${thinkingBudget} session=${sessionId}${isTrackedSession ? ' (tracked)' : ' (stealth)'}`);
 

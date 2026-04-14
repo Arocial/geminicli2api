@@ -1,9 +1,13 @@
 import crypto from 'node:crypto';
+import type { CodeAssistServer } from '@google/gemini-cli-core';
+import { createServer } from './credentials.js';
 
 interface Session {
   id: string;
   createdAt: number;
   lastUsedAt: number;
+  /** Cached CodeAssistServer instances keyed by baseModel */
+  servers: Map<string, CodeAssistServer>;
 }
 
 const sessions = new Map<string, Session>();
@@ -38,11 +42,27 @@ export function getOrCreateSession(sessionId?: string): Session {
     id,
     createdAt: Date.now(),
     lastUsedAt: Date.now(),
+    servers: new Map(),
   };
 
   sessions.set(id, session);
   console.log(`[session] created: ${id} (total: ${sessions.size})`);
   return session;
+}
+
+/**
+ * Get or create a CodeAssistServer for the given session and model.
+ * Reuses existing server instances per session+model pair, matching
+ * the official gemini-cli behavior (one server per session).
+ */
+export function getOrCreateServer(session: Session, baseModel: string): CodeAssistServer {
+  let server = session.servers.get(baseModel);
+  if (!server) {
+    server = createServer(baseModel, session.id);
+    session.servers.set(baseModel, server);
+    console.log(`[session] new server: model=${baseModel} session=${session.id}`);
+  }
+  return server;
 }
 
 export function listSessions(): { id: string; createdAt: number; lastUsedAt: number }[] {
