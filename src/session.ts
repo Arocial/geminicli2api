@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import type { CodeAssistServer } from '@google/gemini-cli-core';
+import type { ProxyCodeAssistServer } from './proxy-server.js';
 import { createServer } from './credentials.js';
 
 interface Session {
@@ -7,7 +7,7 @@ interface Session {
   createdAt: number;
   lastUsedAt: number;
   /** Cached CodeAssistServer instances keyed by baseModel */
-  servers: Map<string, CodeAssistServer>;
+  servers: Map<string, ProxyCodeAssistServer>;
 }
 
 const sessions = new Map<string, Session>();
@@ -55,7 +55,7 @@ export function getOrCreateSession(sessionId?: string): Session {
  * Reuses existing server instances per session+model pair, matching
  * the official gemini-cli behavior (one server per session).
  */
-export function getOrCreateServer(session: Session, baseModel: string): CodeAssistServer {
+export function getOrCreateServer(session: Session, baseModel: string): ProxyCodeAssistServer {
   let server = session.servers.get(baseModel);
   if (!server) {
     server = createServer(baseModel, session.id);

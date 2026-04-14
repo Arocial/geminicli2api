@@ -2,12 +2,12 @@ import { createRequire } from 'module';
 import {
   getOauthClient,
   AuthType,
-  CodeAssistServer,
   setupUser,
   coreEvents,
   CoreEvent,
   UserAccountManager,
 } from '@google/gemini-cli-core';
+import { ProxyCodeAssistServer } from './proxy-server.js';
 import type { UserTierId, GeminiUserTier } from '@google/gemini-cli-core/dist/src/code_assist/types.js';
 
 const require = createRequire(import.meta.url);
@@ -76,8 +76,8 @@ export async function initServer(): Promise<AuthInfo> {
 }
 
 /** Dynamically create a server instance with the correct User-Agent and Session ID */
-export function createServer(model: string, sessionId: string): CodeAssistServer {
-  return new CodeAssistServer(
+export function createServer(model: string, sessionId: string): ProxyCodeAssistServer {
+  return new ProxyCodeAssistServer(
     authClient,
     projectId,
     buildHttpOptions(model),

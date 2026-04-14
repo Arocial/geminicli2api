@@ -1,6 +1,5 @@
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
-import { LlmRole } from '@google/gemini-cli-core';
 import { authMiddleware } from './middleware.js';
 import { createServer } from './credentials.js';
 import { getOrCreateSession, getOrCreateServer, listSessions, deleteSession } from './session.js';
@@ -44,13 +43,11 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
     let server;
 
     if (requestSessionId !== undefined) {
-      // Client wants session support — reuse cached CodeAssistServer
       isTrackedSession = true;
       const session = getOrCreateSession(requestSessionId || undefined);
       sessionId = session.id;
       server = getOrCreateServer(session, baseModel);
     } else {
-      // Stateless mode: ephemeral server, not tracked in session store
       sessionId = crypto.randomUUID();
       server = createServer(baseModel, sessionId);
     }
@@ -58,10 +55,10 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
     console.log(`[${action}] baseModel=${baseModel} useSearch=${useSearch} thinkingBudget=${thinkingBudget} session=${sessionId}${isTrackedSession ? ' (tracked)' : ' (stealth)'}`);
 
     if (action === 'streamGenerateContent' || c.req.query('alt') === 'sse') {
-      // Await the generator creation outside streamSSE to catch initial errors (like 429)
-      const gen = await server.generateContentStream(params as never, userPromptId, LlmRole.MAIN);
+      // Use raw streaming — bypasses SDK response conversion, forwards v1internal
+      // response payload directly to client with only the envelope unwrap.
+      const gen = server.streamRaw(params as never, userPromptId);
 
-      // Set session ID header for streaming responses if it's a tracked session
       if (isTrackedSession) {
         c.header('X-Session-Id', sessionId);
       }
@@ -72,33 +69,30 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
             await stream.writeSSE({ data: JSON.stringify(chunk) });
           }
         } catch (err: any) {
-          console.error(`[${action}] stream iteration error:`, err);
-          // If an error occurs during streaming, we can't change the HTTP status code anymore.
-          // We can only close the stream or send an error event.
-          // Standard Gemini API doesn't have a standard SSE error format, so we just end the stream.
+          console.error(`[${action}] stream error:`, err);
         }
       });
     } else if (action === 'generateContent') {
-      const response = await server.generateContent(params as never, userPromptId, LlmRole.MAIN);
+      const response = await server.requestRaw(params as never, userPromptId);
       if (isTrackedSession) {
         c.header('X-Session-Id', sessionId);
       }
-      return c.json(response);
+      return c.json(response as object);
     } else {
       return c.json({ error: `Unknown action: ${action}` }, 400);
     }
   } catch (err: any) {
     const status = err?.status ?? err?.code ?? 500;
     let upstream = err?.response?.data;
-    
+
     if (typeof upstream === 'string') {
       try {
         upstream = JSON.parse(upstream);
-      } catch (e) {
+      } catch {
         upstream = { error: upstream };
       }
     }
-    
+
     console.error(`[${action}] error (${status}):`, err);
     return c.json(upstream ?? { error: String(err) }, status);
   }
