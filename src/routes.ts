@@ -83,11 +83,11 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
         }
       });
     } else if (action === 'generateContent') {
-      const { headers, body: responseBody } = await server.requestRaw(params as never, userPromptId);
+      const { status, headers, body: responseBody } = await server.requestRaw(params as never, userPromptId);
 
       setResponseHeaders(c, headers, isTrackedSession ? sessionId : undefined);
 
-      return c.json(responseBody as object);
+      return c.json(responseBody as object, status as 200);
     } else {
       return c.json({ error: `Unknown action: ${action}` }, 400);
     }

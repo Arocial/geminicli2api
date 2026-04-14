@@ -5,11 +5,13 @@ import * as readline from 'node:readline';
 import { Readable } from 'node:stream';
 
 export interface RawStreamResult {
+  status: number;
   headers: Record<string, string>;
   stream: AsyncGenerator<unknown>;
 }
 
 export interface RawUnaryResult {
+  status: number;
   headers: Record<string, string>;
   body: unknown;
 }
@@ -66,6 +68,7 @@ export class ProxyCodeAssistServer extends CodeAssistServer {
       retry: false,
     });
 
+    const status = res.status;
     const headers = pickHeaders(res.headers ?? {});
 
     async function* parseSSE(data: AsyncIterable<Buffer>) {
@@ -93,6 +96,7 @@ export class ProxyCodeAssistServer extends CodeAssistServer {
     }
 
     return {
+      status,
       headers,
       stream: parseSSE(res.data as AsyncIterable<Buffer>),
     };
@@ -133,9 +137,11 @@ export class ProxyCodeAssistServer extends CodeAssistServer {
       },
     });
 
+    const status = res.status;
     const headers = pickHeaders(res.headers ?? {});
     const data = res.data as { response?: unknown };
     return {
+      status,
       headers,
       body: data.response ?? data,
     };
