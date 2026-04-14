@@ -19,6 +19,20 @@ routes.delete('/sessions/:id', authMiddleware, (c) => {
   return deleted ? c.json({ ok: true }) : c.json({ error: 'Session not found' }, 404);
 });
 
+/** Set upstream headers + session header on the outgoing response. */
+function setResponseHeaders(
+  c: { header: (k: string, v: string) => void },
+  upstream: Record<string, string>,
+  sessionId?: string,
+) {
+  for (const [k, v] of Object.entries(upstream)) {
+    c.header(k, v);
+  }
+  if (sessionId) {
+    c.header('X-Session-Id', sessionId);
+  }
+}
+
 routes.post('/v1beta/models/*', authMiddleware, async (c) => {
   const rest = c.req.path.replace('/v1beta/models/', '');
   const colonIdx = rest.lastIndexOf(':');
@@ -55,29 +69,25 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
     console.log(`[${action}] baseModel=${baseModel} useSearch=${useSearch} thinkingBudget=${thinkingBudget} session=${sessionId}${isTrackedSession ? ' (tracked)' : ' (stealth)'}`);
 
     if (action === 'streamGenerateContent' || c.req.query('alt') === 'sse') {
-      // Use raw streaming — bypasses SDK response conversion, forwards v1internal
-      // response payload directly to client with only the envelope unwrap.
-      const gen = server.streamRaw(params as never, userPromptId);
+      const { headers, stream } = await server.streamRaw(params as never, userPromptId);
 
-      if (isTrackedSession) {
-        c.header('X-Session-Id', sessionId);
-      }
+      setResponseHeaders(c, headers, isTrackedSession ? sessionId : undefined);
 
-      return streamSSE(c, async (stream) => {
+      return streamSSE(c, async (sseStream) => {
         try {
-          for await (const chunk of gen) {
-            await stream.writeSSE({ data: JSON.stringify(chunk) });
+          for await (const chunk of stream) {
+            await sseStream.writeSSE({ data: JSON.stringify(chunk) });
           }
         } catch (err: any) {
           console.error(`[${action}] stream error:`, err);
         }
       });
     } else if (action === 'generateContent') {
-      const response = await server.requestRaw(params as never, userPromptId);
-      if (isTrackedSession) {
-        c.header('X-Session-Id', sessionId);
-      }
-      return c.json(response as object);
+      const { headers, body: responseBody } = await server.requestRaw(params as never, userPromptId);
+
+      setResponseHeaders(c, headers, isTrackedSession ? sessionId : undefined);
+
+      return c.json(responseBody as object);
     } else {
       return c.json({ error: `Unknown action: ${action}` }, 400);
     }

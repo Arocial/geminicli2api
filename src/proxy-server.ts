@@ -4,24 +4,51 @@ import type { GenerateContentParameters } from '@google/genai';
 import * as readline from 'node:readline';
 import { Readable } from 'node:stream';
 
+export interface RawStreamResult {
+  headers: Record<string, string>;
+  stream: AsyncGenerator<unknown>;
+}
+
+export interface RawUnaryResult {
+  headers: Record<string, string>;
+  body: unknown;
+}
+
+/** Headers worth forwarding from the upstream v1internal response. */
+const PASSTHROUGH_HEADERS = [
+  'x-request-id',
+  'x-goog-request-id',
+  'x-debug-tracking-id',
+  'x-ratelimit-limit',
+  'x-ratelimit-remaining',
+  'x-ratelimit-reset',
+  'grpc-status',
+  'grpc-message',
+];
+
+function pickHeaders(raw: Record<string, unknown>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const key of PASSTHROUGH_HEADERS) {
+    const v = raw[key];
+    if (v != null) out[key] = String(v);
+  }
+  return out;
+}
+
 /**
  * Extends CodeAssistServer to expose raw streaming and unary access
  * to the v1internal endpoint, bypassing the SDK's response conversion layer.
- *
- * This lets the proxy forward Google's SSE chunks directly to clients
- * with only the minimal unwrap of the `{ response }` envelope.
  */
 export class ProxyCodeAssistServer extends CodeAssistServer {
 
   /**
-   * Stream: returns an async generator that yields raw `response` objects
-   * straight from the v1internal SSE stream — no GenerateContentResponse
-   * class conversion, no telemetry side-effects.
+   * Stream: returns upstream headers + an async generator that yields raw
+   * `response` objects straight from the v1internal SSE stream.
    */
-  async *streamRaw(
+  async streamRaw(
     req: GenerateContentParameters,
     userPromptId: string,
-  ): AsyncGenerator<unknown> {
+  ): Promise<RawStreamResult> {
     const wireReq = toGenerateContentRequest(
       req, userPromptId, this.projectId, this.sessionId, undefined,
     );
@@ -39,45 +66,78 @@ export class ProxyCodeAssistServer extends CodeAssistServer {
       retry: false,
     });
 
-    const rl = readline.createInterface({
-      input: Readable.from(res.data as AsyncIterable<Buffer>),
-      crlfDelay: Infinity,
-    });
+    const headers = pickHeaders(res.headers ?? {});
 
-    let bufferedLines: string[] = [];
-    for await (const line of rl) {
-      if (line.startsWith('data: ')) {
-        bufferedLines.push(line.slice(6).trim());
-      } else if (line === '') {
-        if (bufferedLines.length === 0) continue;
-        const chunk = bufferedLines.join('\n');
-        bufferedLines = [];
-        try {
-          const parsed = JSON.parse(chunk);
-          // Unwrap the v1internal envelope — yield only the inner response
-          yield parsed.response ?? parsed;
-        } catch {
-          // skip malformed chunks
+    async function* parseSSE(data: AsyncIterable<Buffer>) {
+      const rl = readline.createInterface({
+        input: Readable.from(data),
+        crlfDelay: Infinity,
+      });
+
+      let bufferedLines: string[] = [];
+      for await (const line of rl) {
+        if (line.startsWith('data: ')) {
+          bufferedLines.push(line.slice(6).trim());
+        } else if (line === '') {
+          if (bufferedLines.length === 0) continue;
+          const chunk = bufferedLines.join('\n');
+          bufferedLines = [];
+          try {
+            const parsed = JSON.parse(chunk);
+            yield parsed.response ?? parsed;
+          } catch {
+            // skip malformed chunks
+          }
         }
       }
     }
+
+    return {
+      headers,
+      stream: parseSSE(res.data as AsyncIterable<Buffer>),
+    };
   }
 
   /**
-   * Unary: sends a non-streaming request and returns the raw `response`
-   * object, with retry on 429/5xx (matching CodeAssistServer behavior).
+   * Unary: sends a non-streaming request and returns upstream headers +
+   * the raw `response` object, with retry on 429/5xx.
    */
   async requestRaw(
     req: GenerateContentParameters,
     userPromptId: string,
-  ): Promise<unknown> {
+  ): Promise<RawUnaryResult> {
     const wireReq = toGenerateContentRequest(
       req, userPromptId, this.projectId, this.sessionId, undefined,
     );
 
-    const res = await this.requestPost<{ response?: unknown }>(
-      'generateContent', wireReq,
-    );
-    return res.response ?? res;
+    // requestPost returns parsed JSON directly (no access to headers).
+    // Use client.request for header access.
+    const res = await this.client.request({
+      url: this.getMethodUrl('generateContent'),
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...this.httpOptions.headers,
+      },
+      responseType: 'json',
+      body: JSON.stringify(wireReq),
+      retryConfig: {
+        retryDelay: 1000,
+        retry: 3,
+        noResponseRetries: 3,
+        statusCodesToRetry: [
+          [429, 429],
+          [499, 499],
+          [500, 599],
+        ],
+      },
+    });
+
+    const headers = pickHeaders(res.headers ?? {});
+    const data = res.data as { response?: unknown };
+    return {
+      headers,
+      body: data.response ?? data,
+    };
   }
 }
