@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "tsx watch --clear-screen=false src/index.ts"
+    "dev": "tsx src/index.ts"
   },
   "dependencies": {
     "@google/gemini-cli-core": "^0.36.0",
