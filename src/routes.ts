@@ -77,9 +77,11 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
     } else {
       return c.json({ error: `Unknown action: ${action}` }, 400);
     }
-  } catch (err) {
-    console.error(`[${action}] error:`, err);
-    return c.json({ error: String(err) }, 500);
+  } catch (err: any) {
+    const status = err?.status ?? err?.code ?? 500;
+    const upstream = err?.response?.data;
+    console.error(`[${action}] error (${status}):`, err);
+    return c.json(upstream ?? { error: String(err) }, status);
   }
 });
 
