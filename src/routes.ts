@@ -47,7 +47,12 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
       const session = getOrCreateSession(requestSessionId || undefined);
       sessionId = session.id;
       server = getOrCreateServer(session, baseModel);
-      turn = nextTurn(session);
+
+      const contents = body.contents || [];
+      const lastMessage = contents[contents.length - 1];
+      const isUserTurn = lastMessage?.role === 'user';
+
+      turn = nextTurn(session, isUserTurn);
     } else {
       sessionId = crypto.randomUUID();
       server = createServer(baseModel, sessionId);

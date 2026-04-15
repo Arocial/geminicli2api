@@ -70,8 +70,12 @@ export function getOrCreateServer(session: Session, baseModel: string): ProxyCod
 }
 
 /** Increment and return the current turn count for a session. */
-export function nextTurn(session: Session): number {
-  return session.turnCount++;
+export function nextTurn(session: Session, isUserTurn: boolean = true): number {
+  if (isUserTurn) {
+    return session.turnCount++;
+  }
+  // If not a user turn, reuse the last turn number (or 0 if none)
+  return session.turnCount;
 }
 
 export function listSessions(): { id: string; createdAt: number; lastUsedAt: number }[] {
