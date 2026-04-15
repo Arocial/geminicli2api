@@ -37,7 +37,7 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
 
     const contents = body.contents || [];
     const lastMessage = contents[contents.length - 1];
-    const isUserTurn = lastMessage?.role === 'user';
+    const isUserTurn = lastMessage?.role === 'user' && !lastMessage.parts?.some((p: any) => 'functionResponse' in p);
 
     // Session support: use X-Session-Id header to maintain conversation context
     const requestSessionId = c.req.header('X-Session-Id');
