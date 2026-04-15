@@ -35,6 +35,10 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
     const { baseModel, useSearch, thinkingBudget } = parseModelVariant(model);
     const params = toGenerateContentParams(baseModel, body, { useSearch, thinkingBudget });
 
+    const contents = body.contents || [];
+    const lastMessage = contents[contents.length - 1];
+    const isUserTurn = lastMessage?.role === 'user';
+
     // Session support: use X-Session-Id header to maintain conversation context
     const requestSessionId = c.req.header('X-Session-Id');
     let sessionId: string;
@@ -48,10 +52,6 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
       sessionId = session.id;
       server = getOrCreateServer(session, baseModel);
 
-      const contents = body.contents || [];
-      const lastMessage = contents[contents.length - 1];
-      const isUserTurn = lastMessage?.role === 'user';
-
       turn = nextTurn(session, isUserTurn);
     } else {
       sessionId = crypto.randomUUID();
@@ -61,6 +61,14 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
     const userPromptId = `${sessionId}########${turn}`;
 
     console.log(`[${action}] baseModel=${baseModel} useSearch=${useSearch} thinkingBudget=${thinkingBudget} session=${sessionId}${isTrackedSession ? ' (tracked)' : ' (stealth)'}`);
+
+    if (isUserTurn) {
+      try {
+        await server.retrieveUserQuota({ project: (server as any).projectId } as never);
+      } catch (e) {
+        // ignore
+      }
+    }
 
     if (action === 'streamGenerateContent' || c.req.query('alt') === 'sse') {
       const { stream } = await server.streamRaw(params as never, userPromptId);
