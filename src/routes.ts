@@ -71,6 +71,21 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
           }
         } catch (err: any) {
           console.error(`[${action}] stream error:`, err);
+          const code = err?.code === 'ECONNRESET' ? 502
+            : err?.code === 'ETIMEDOUT' ? 504
+            : 500;
+          const errorEvent = {
+            error: {
+              code,
+              message: `Upstream connection error: ${err?.code || err?.message || 'unknown'}`,
+              status: code === 502 ? 'BAD_GATEWAY' : code === 504 ? 'DEADLINE_EXCEEDED' : 'INTERNAL',
+            },
+          };
+          try {
+            await sseStream.writeSSE({ data: JSON.stringify(errorEvent) });
+          } catch {
+            // Client already disconnected, nothing we can do
+          }
         }
       });
     } else if (action === 'generateContent') {
