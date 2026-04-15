@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { authMiddleware } from './middleware.js';
 import { createServer } from './credentials.js';
-import { getOrCreateSession, getOrCreateServer, listSessions, deleteSession } from './session.js';
+import { getOrCreateSession, getOrCreateServer, nextTurn, listSessions, deleteSession } from './session.js';
 import { parseModelVariant, toGenerateContentParams } from './config.js';
 import crypto from 'node:crypto';
 
@@ -34,23 +34,26 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
     const body = await c.req.json();
     const { baseModel, useSearch, thinkingBudget } = parseModelVariant(model);
     const params = toGenerateContentParams(baseModel, body, { useSearch, thinkingBudget });
-    const userPromptId = crypto.randomUUID();
 
     // Session support: use X-Session-Id header to maintain conversation context
     const requestSessionId = c.req.header('X-Session-Id');
     let sessionId: string;
     let isTrackedSession = false;
     let server;
+    let turn = 0;
 
     if (requestSessionId !== undefined) {
       isTrackedSession = true;
       const session = getOrCreateSession(requestSessionId || undefined);
       sessionId = session.id;
       server = getOrCreateServer(session, baseModel);
+      turn = nextTurn(session);
     } else {
       sessionId = crypto.randomUUID();
       server = createServer(baseModel, sessionId);
     }
+
+    const userPromptId = `${sessionId}########${turn}`;
 
     console.log(`[${action}] baseModel=${baseModel} useSearch=${useSearch} thinkingBudget=${thinkingBudget} session=${sessionId}${isTrackedSession ? ' (tracked)' : ' (stealth)'}`);
 

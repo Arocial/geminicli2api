@@ -6,6 +6,7 @@ interface Session {
   id: string;
   createdAt: number;
   lastUsedAt: number;
+  turnCount: number;
   /** Cached CodeAssistServer instances keyed by baseModel */
   servers: Map<string, ProxyCodeAssistServer>;
 }
@@ -26,6 +27,7 @@ setInterval(() => {
   }
 }, CLEANUP_INTERVAL_MS);
 
+
 export function getOrCreateSession(sessionId?: string): Session {
   // Reuse existing session
   if (sessionId && sessions.has(sessionId)) {
@@ -35,18 +37,20 @@ export function getOrCreateSession(sessionId?: string): Session {
     return session;
   }
 
-  // Create new session
-  const id = sessionId || crypto.randomUUID();
+  // Create new session — always use UUID as the internal id
+  const key = sessionId || crypto.randomUUID();
+  const id = crypto.randomUUID();
 
   const session: Session = {
     id,
     createdAt: Date.now(),
     lastUsedAt: Date.now(),
+    turnCount: 0,
     servers: new Map(),
   };
 
-  sessions.set(id, session);
-  console.log(`[session] created: ${id} (total: ${sessions.size})`);
+  sessions.set(key, session);
+  console.log(`[session] created: ${id} (key=${key}, total: ${sessions.size})`);
   return session;
 }
 
@@ -63,6 +67,11 @@ export function getOrCreateServer(session: Session, baseModel: string): ProxyCod
     console.log(`[session] new server: model=${baseModel} session=${session.id}`);
   }
   return server;
+}
+
+/** Increment and return the current turn count for a session. */
+export function nextTurn(session: Session): number {
+  return session.turnCount++;
 }
 
 export function listSessions(): { id: string; createdAt: number; lastUsedAt: number }[] {
