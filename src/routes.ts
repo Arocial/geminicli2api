@@ -4,6 +4,7 @@ import { authMiddleware } from './middleware.js';
 import { createServer } from './credentials.js';
 import { getOrCreateSession, getOrCreateServer, listSessions, deleteSession } from './session.js';
 import { parseModelVariant, toGenerateContentParams } from './config.js';
+import { analyzeTurn } from './utils.js';
 import crypto from 'node:crypto';
 
 const routes = new Hono();
@@ -36,10 +37,7 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
     const params = toGenerateContentParams(baseModel, body, { useSearch, thinkingBudget });
 
     const contents = body.contents || [];
-    const lastMessage = contents[contents.length - 1];
-    const isUserTurn = lastMessage?.role === 'user' && lastMessage.parts?.some((p: any) => 'text' in p);
-    const userTurns = contents.filter((m: any) => m.role === 'user' && m.parts?.some((p: any) => 'text' in p)).length;
-    const turn = Math.max(0, userTurns - 1);
+    const { isUserTurn, turn } = analyzeTurn(contents);
 
     // Session support: use X-Session-Id header to maintain conversation context
     const requestSessionId = c.req.header('X-Session-Id');
