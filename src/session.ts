@@ -8,6 +8,8 @@ interface Session {
   lastUsedAt: number;
   /** Cached CodeAssistServer instances keyed by baseModel */
   servers: Map<string, ProxyCodeAssistServer>;
+  lastUserMsgCnt: number;
+  lastReportTurn: number;
 }
 
 const sessions = new Map<string, Session>();
@@ -27,7 +29,7 @@ setInterval(() => {
 }, CLEANUP_INTERVAL_MS);
 
 
-export function getOrCreateSession(sessionId?: string): Session {
+export function getOrCreateSession(sessionId?: string, track?: boolean): Session {
   // Reuse existing session
   if (sessionId && sessions.has(sessionId)) {
     const session = sessions.get(sessionId)!;
@@ -45,9 +47,13 @@ export function getOrCreateSession(sessionId?: string): Session {
     createdAt: Date.now(),
     lastUsedAt: Date.now(),
     servers: new Map(),
+    lastUserMsgCnt: -1,
+    lastReportTurn: -1,
   };
 
-  sessions.set(key, session);
+  if (track) {
+    sessions.set(key, session);
+  }
   console.log(`[session] created: ${id} (key=${key}, total: ${sessions.size})`);
   return session;
 }
@@ -81,4 +87,20 @@ export function deleteSession(sessionId: string): boolean {
     console.log(`[session] deleted: ${sessionId}`);
   }
   return deleted;
+}
+
+/**
+ * Analyzes the conversation contents to determine if it's the user's turn
+ * and calculates the current turn index.
+ */
+export function analyzeTurn(contents: any[], session: Session) {
+  const lastMessage = contents[contents.length - 1];
+  const isUserTurn = lastMessage?.role === 'user' && lastMessage.parts?.some((p: any) => 'text' in p);
+  const userMsgCnt = contents.filter((m: any) => m.role === 'user' && m.parts?.some((p: any) => 'text' in p)).length;
+  if(userMsgCnt > session.lastUserMsgCnt){
+    session.lastUserMsgCnt = userMsgCnt;
+    session.lastReportTurn ++;
+  }
+  const turn = session.lastReportTurn
+  return { isUserTurn,  turn};
 }
