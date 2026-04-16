@@ -6,7 +6,6 @@ interface Session {
   id: string;
   createdAt: number;
   lastUsedAt: number;
-  turnCount: number;
   /** Cached CodeAssistServer instances keyed by baseModel */
   servers: Map<string, ProxyCodeAssistServer>;
 }
@@ -45,7 +44,6 @@ export function getOrCreateSession(sessionId?: string): Session {
     id,
     createdAt: Date.now(),
     lastUsedAt: Date.now(),
-    turnCount: 0,
     servers: new Map(),
   };
 
@@ -67,15 +65,6 @@ export function getOrCreateServer(session: Session, baseModel: string): ProxyCod
     console.log(`[session] new server: model=${baseModel} session=${session.id}`);
   }
   return server;
-}
-
-/** Increment and return the current turn count for a session. */
-export function nextTurn(session: Session, isUserTurn: boolean = true): number {
-  if (isUserTurn) {
-    return session.turnCount++;
-  }
-  // If not a user turn, reuse the last turn number (or 0 if none)
-  return session.turnCount;
 }
 
 export function listSessions(): { id: string; createdAt: number; lastUsedAt: number }[] {

@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { authMiddleware } from './middleware.js';
 import { createServer } from './credentials.js';
-import { getOrCreateSession, getOrCreateServer, nextTurn, listSessions, deleteSession } from './session.js';
+import { getOrCreateSession, getOrCreateServer, listSessions, deleteSession } from './session.js';
 import { parseModelVariant, toGenerateContentParams } from './config.js';
 import crypto from 'node:crypto';
 
@@ -37,22 +37,21 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
 
     const contents = body.contents || [];
     const lastMessage = contents[contents.length - 1];
-    const isUserTurn = lastMessage?.role === 'user' && !lastMessage.parts?.some((p: any) => 'functionResponse' in p);
+    const isUserTurn = lastMessage?.role === 'user' && lastMessage.parts?.some((p: any) => 'text' in p);
+    const userTurns = contents.filter((m: any) => m.role === 'user' && m.parts?.some((p: any) => 'text' in p)).length;
+    const turn = Math.max(0, userTurns - 1);
 
     // Session support: use X-Session-Id header to maintain conversation context
     const requestSessionId = c.req.header('X-Session-Id');
     let sessionId: string;
     let isTrackedSession = false;
     let server;
-    let turn = 0;
 
     if (requestSessionId !== undefined) {
       isTrackedSession = true;
       const session = getOrCreateSession(requestSessionId || undefined);
       sessionId = session.id;
       server = getOrCreateServer(session, baseModel);
-
-      turn = nextTurn(session, isUserTurn);
     } else {
       sessionId = crypto.randomUUID();
       server = createServer(baseModel, sessionId);
