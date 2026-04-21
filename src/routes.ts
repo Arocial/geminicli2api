@@ -54,6 +54,8 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
 
     console.log(`[${action}] baseModel=${baseModel} useSearch=${useSearch} thinkingBudget=${thinkingBudget} session=${sessionId}${isTrackedSession ? ' (tracked)' : ' (stealth)'}`);
 
+    const clientSignal = c.req.raw.signal;
+
     if (isUserTurn) {
       try {
         await server.retrieveUserQuota({ project: (server as any).projectId } as never);
@@ -63,7 +65,7 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
     }
 
     if (action === 'streamGenerateContent' || c.req.query('alt') === 'sse') {
-      const { stream } = await server.streamRaw(params as never, userPromptId);
+      const { stream } = await server.streamRaw(params as never, userPromptId, clientSignal);
 
       if (isTrackedSession) {
         c.header('X-Session-Id', sessionId);
@@ -72,9 +74,14 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
       return streamSSE(c, async (sseStream) => {
         try {
           for await (const chunk of stream) {
+            if (clientSignal.aborted) break;
             await sseStream.writeSSE({ data: JSON.stringify(chunk) });
           }
         } catch (err: any) {
+          if (clientSignal.aborted) {
+            console.log(`[${action}] client disconnected, upstream aborted`);
+            return;
+          }
           console.error(`[${action}] stream error:`, err);
           const code = err?.code === 'ECONNRESET' ? 502
             : err?.code === 'ETIMEDOUT' ? 504
@@ -94,7 +101,7 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
         }
       });
     } else if (action === 'generateContent') {
-      const { status, body: responseBody } = await server.requestRaw(params as never, userPromptId);
+      const { status, body: responseBody } = await server.requestRaw(params as never, userPromptId, clientSignal);
 
       if (isTrackedSession) {
         c.header('X-Session-Id', sessionId);
@@ -105,6 +112,10 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
       return c.json({ error: `Unknown action: ${action}` }, 400);
     }
   } catch (err: any) {
+    if (c.req.raw.signal.aborted) {
+      console.log(`[${action}] client disconnected, upstream aborted`);
+      return c.body(null, 499 as 200);
+    }
     const status = err?.status ?? err?.code ?? 500;
     let upstream = err?.response?.data;
 

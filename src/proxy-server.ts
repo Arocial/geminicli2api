@@ -27,6 +27,7 @@ export class ProxyCodeAssistServer extends CodeAssistServer {
   async streamRaw(
     req: GenerateContentParameters,
     userPromptId: string,
+    signal?: AbortSignal,
   ): Promise<RawStreamResult> {
     const wireReq = toGenerateContentRequest(
       req, userPromptId, this.projectId, this.sessionId, undefined,
@@ -43,6 +44,7 @@ export class ProxyCodeAssistServer extends CodeAssistServer {
       responseType: 'stream',
       body: JSON.stringify(wireReq),
       retry: false,
+      signal,
     });
 
     const status = res.status;
@@ -84,6 +86,7 @@ export class ProxyCodeAssistServer extends CodeAssistServer {
   async requestRaw(
     req: GenerateContentParameters,
     userPromptId: string,
+    signal?: AbortSignal,
   ): Promise<RawUnaryResult> {
     const wireReq = toGenerateContentRequest(
       req, userPromptId, this.projectId, this.sessionId, undefined,
@@ -100,6 +103,7 @@ export class ProxyCodeAssistServer extends CodeAssistServer {
       },
       responseType: 'json',
       body: JSON.stringify(wireReq),
+      signal,
       retryConfig: {
         retryDelay: 1000,
         retry: 3,
