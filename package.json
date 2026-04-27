@@ -9,7 +9,7 @@
     "dev": "tsx src/index.ts"
   },
   "dependencies": {
-    "@google/gemini-cli-core": "^0.36.0",
+    "@google/gemini-cli-core": "0.x",
     "@hono/node-server": "^1.14.0",
     "hono": "^4.7.0"
   },
