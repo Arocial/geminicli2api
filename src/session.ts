@@ -33,7 +33,11 @@ setInterval(() => {
   }
 }, CLEANUP_INTERVAL_MS);
 
-export function calculateHistoryHash(contents: any[], excludeLast: boolean, identity: string): string | null {
+export function calculateHistoryHash(
+  contents: any[],
+  excludeLast: boolean,
+  identity: string,
+): string | null {
   if (!contents || !Array.isArray(contents)) return null;
 
   const userTexts: string[] = [];
@@ -57,10 +61,10 @@ export function calculateHistoryHash(contents: any[], excludeLast: boolean, iden
 }
 
 export function getOrCreateSession(
-  sessionId?: string, 
+  sessionId?: string,
   track?: boolean,
   historyHash?: string | null,
-  newHistoryHash?: string | null
+  newHistoryHash?: string | null,
 ): Session {
   let resolvedSessionKey = sessionId;
 
@@ -69,7 +73,9 @@ export function getOrCreateSession(
     const foundKey = historyHashToSessionId.get(historyHash);
     if (foundKey && sessions.has(foundKey)) {
       resolvedSessionKey = foundKey;
-      console.log(`[session] fallback matched hash: ${historyHash.substring(0, 8)} -> ${resolvedSessionKey}`);
+      console.log(
+        `[session] fallback matched hash: ${historyHash.substring(0, 8)} -> ${resolvedSessionKey}`,
+      );
     }
   }
 
@@ -77,12 +83,12 @@ export function getOrCreateSession(
   if (resolvedSessionKey && sessions.has(resolvedSessionKey)) {
     const session = sessions.get(resolvedSessionKey)!;
     session.lastUsedAt = Date.now();
-    
+
     if (newHistoryHash) {
       session.historyHashes.add(newHistoryHash);
       historyHashToSessionId.set(newHistoryHash, resolvedSessionKey);
     }
-    
+
     console.log(`[session] reuse: ${resolvedSessionKey}`);
     return session;
   }
@@ -156,12 +162,15 @@ export function deleteSession(sessionId: string): boolean {
  */
 export function analyzeTurn(contents: any[], session: Session) {
   const lastMessage = contents[contents.length - 1];
-  const isUserTurn = lastMessage?.role === 'user' && lastMessage.parts?.some((p: any) => 'text' in p);
-  const userMsgCnt = contents.filter((m: any) => m.role === 'user' && m.parts?.some((p: any) => 'text' in p)).length;
-  if(userMsgCnt > session.lastUserMsgCnt){
+  const isUserTurn =
+    lastMessage?.role === 'user' && lastMessage.parts?.some((p: any) => 'text' in p);
+  const userMsgCnt = contents.filter(
+    (m: any) => m.role === 'user' && m.parts?.some((p: any) => 'text' in p),
+  ).length;
+  if (userMsgCnt > session.lastUserMsgCnt) {
     session.lastUserMsgCnt = userMsgCnt;
-    session.lastReportTurn ++;
+    session.lastReportTurn++;
   }
-  const turn = session.lastReportTurn
-  return { isUserTurn,  turn};
+  const turn = session.lastReportTurn;
+  return { isUserTurn, turn };
 }

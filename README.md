@@ -13,13 +13,13 @@ On first launch, a Google OAuth login flow will be triggered. Once authenticated
 
 ## Environment Variables
 
-| Variable | Description | Default |
-|---|---|---|
-| `GCAPORT` | Listen port | `3400` |
-| `GCA_PASSWORD` | API access password (no auth if unset) | - |
-| `HTTPS_PROXY` / `HTTP_PROXY` | Proxy address | - |
-| `CLI_VERSION` | Gemini CLI version for User-Agent header | Auto-detected |
-| `NO_BROWSER` | Set to `true` to suppress automatic browser launch | - |
+| Variable                     | Description                                        | Default       |
+| ---------------------------- | -------------------------------------------------- | ------------- |
+| `GCAPORT`                    | Listen port                                        | `3400`        |
+| `GCA_PASSWORD`               | API access password (no auth if unset)             | -             |
+| `HTTPS_PROXY` / `HTTP_PROXY` | Proxy address                                      | -             |
+| `CLI_VERSION`                | Gemini CLI version for User-Agent header           | Auto-detected |
+| `NO_BROWSER`                 | Set to `true` to suppress automatic browser launch | -             |
 
 ## API
 
@@ -34,10 +34,10 @@ Request body follows the standard Gemini API format:
 
 Authentication is checked only when `GCA_PASSWORD` is set. Supported formats (standard Gemini API):
 
-| Method | Example |
-|---|---|
+| Method                  | Example                               |
+| ----------------------- | ------------------------------------- |
 | `x-goog-api-key` header | `-H "x-goog-api-key: <GCA_PASSWORD>"` |
-| `key` query parameter | `?key=<GCA_PASSWORD>` |
+| `key` query parameter   | `?key=<GCA_PASSWORD>`                 |
 
 ```bash
 curl -X POST http://localhost:3400/v1beta/models/gemini-2.5-flash:generateContent \
@@ -52,10 +52,10 @@ curl -X POST http://localhost:3400/v1beta/models/gemini-2.5-flash:generateConten
 
 Control behavior via model name suffixes (can be combined):
 
-| Suffix | Effect |
-|---|---|
-| `-search` | Enable Google Search grounding |
-| `-nothinking` | Disable thinking (thinkingBudget=0) |
+| Suffix         | Effect                                         |
+| -------------- | ---------------------------------------------- |
+| `-search`      | Enable Google Search grounding                 |
+| `-nothinking`  | Disable thinking (thinkingBudget=0)            |
 | `-maxthinking` | Maximum thinking budget (thinkingBudget=24576) |
 
 Examples: `gemini-2.5-flash-search`, `gemini-2.5-pro-nothinking`
@@ -102,15 +102,15 @@ DELETE /sessions/:id
 
 Both geminicli2api and the official Gemini CLI use the same underlying transport — `CodeAssistServer` from `@google/gemini-cli-core` — which sends requests to `cloudcode-pa.googleapis.com/v1internal` with identical OAuth tokens and HTTP client behavior. However, there are behavioral differences that could be used for fingerprinting:
 
-| Dimension | Gemini CLI | geminicli2api Proxy |
-|---|---|---|
-| **Endpoint & Auth** | `cloudcode-pa.googleapis.com/v1internal` + OAuth2 | Identical |
-| **User-Agent header** | `GeminiCLI/<version>/<model> (<platform>; <arch>; <surface>)` via httpOptions | Matched (hardcoded version, override via `CLI_VERSION` env) |
-| **session_id** | Always set for multi-turn tracking | Set when using `X-Session-Id`; `undefined` in stateless mode |
-| **user_prompt_id** | Generated internally (UUID) | `crypto.randomUUID()` — same format |
-| **Request body** | Rich system prompts, tool declarations (read_file, write_file, shell, grep, glob, etc.), project context | Raw user-provided body — typically just conversation content |
-| **tools field** | Declares ~10+ built-in tools for agentic coding | Usually none, or just `googleSearch` |
-| **Usage pattern** | Interactive multi-turn with function-calling loops | Typically single request-response |
+| Dimension             | Gemini CLI                                                                                               | geminicli2api Proxy                                          |
+| --------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| **Endpoint & Auth**   | `cloudcode-pa.googleapis.com/v1internal` + OAuth2                                                        | Identical                                                    |
+| **User-Agent header** | `GeminiCLI/<version>/<model> (<platform>; <arch>; <surface>)` via httpOptions                            | Matched (hardcoded version, override via `CLI_VERSION` env)  |
+| **session_id**        | Always set for multi-turn tracking                                                                       | Set when using `X-Session-Id`; `undefined` in stateless mode |
+| **user_prompt_id**    | Generated internally (UUID)                                                                              | `crypto.randomUUID()` — same format                          |
+| **Request body**      | Rich system prompts, tool declarations (read_file, write_file, shell, grep, glob, etc.), project context | Raw user-provided body — typically just conversation content |
+| **tools field**       | Declares ~10+ built-in tools for agentic coding                                                          | Usually none, or just `googleSearch`                         |
+| **Usage pattern**     | Interactive multi-turn with function-calling loops                                                       | Typically single request-response                            |
 
 ### Key Differences
 
@@ -126,13 +126,13 @@ Both geminicli2api and the official Gemini CLI use the same underlying transport
 
 ### Mitigation Status
 
-| Signal | Status | Notes |
-|---|---|---|
-| User-Agent header | **Mitigated** | Auto-detected version; override via `CLI_VERSION` env |
-| session_id | **Mitigated** | Use `X-Session-Id` header for session support |
-| Tool declarations | Not mitigated | Would require injecting CLI tool schemas into every request |
-| System instruction | Not mitigated | Would require replicating CLI's system prompt |
-| Request cadence | Not mitigated | Inherent to usage pattern |
+| Signal             | Status        | Notes                                                       |
+| ------------------ | ------------- | ----------------------------------------------------------- |
+| User-Agent header  | **Mitigated** | Auto-detected version; override via `CLI_VERSION` env       |
+| session_id         | **Mitigated** | Use `X-Session-Id` header for session support               |
+| Tool declarations  | Not mitigated | Would require injecting CLI tool schemas into every request |
+| System instruction | Not mitigated | Would require replicating CLI's system prompt               |
+| Request cadence    | Not mitigated | Inherent to usage pattern                                   |
 
 With User-Agent and session_id addressed, remaining detection requires **behavioral analysis** of request content patterns, not simple header/field checks.
 

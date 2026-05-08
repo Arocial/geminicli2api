@@ -30,7 +30,11 @@ npm install
 npm run dev       # Development with tsx
 npm run build     # Compile TypeScript
 npm start         # Run compiled output
+npm run format    # Prettier write
+npm run lint      # ESLint check
 ```
+
+Before committing, run `npm run format && npm run lint` to keep formatting and lint clean.
 
 ## Key Architecture Decisions
 

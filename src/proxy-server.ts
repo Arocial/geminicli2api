@@ -19,7 +19,6 @@ export interface RawUnaryResult {
  * to the v1internal endpoint, bypassing the SDK's response conversion layer.
  */
 export class ProxyCodeAssistServer extends CodeAssistServer {
-
   /**
    * Stream: returns upstream headers + an async generator that yields raw
    * `response` objects straight from the v1internal SSE stream.
@@ -30,7 +29,11 @@ export class ProxyCodeAssistServer extends CodeAssistServer {
     signal?: AbortSignal,
   ): Promise<RawStreamResult> {
     const wireReq = toGenerateContentRequest(
-      req, userPromptId, this.projectId, this.sessionId, undefined,
+      req,
+      userPromptId,
+      this.projectId,
+      this.sessionId,
+      undefined,
     );
 
     const res = await this.client.request({
@@ -89,7 +92,11 @@ export class ProxyCodeAssistServer extends CodeAssistServer {
     signal?: AbortSignal,
   ): Promise<RawUnaryResult> {
     const wireReq = toGenerateContentRequest(
-      req, userPromptId, this.projectId, this.sessionId, undefined,
+      req,
+      userPromptId,
+      this.projectId,
+      this.sessionId,
+      undefined,
     );
 
     // requestPost returns parsed JSON directly (no access to headers).

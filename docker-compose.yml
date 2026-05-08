@@ -3,7 +3,7 @@ services:
     build: .
     image: ghcr.io/arocial/geminicli2api:latest
     ports:
-      - "3400:3400"
+      - '3400:3400'
     environment:
       - GCA_PORT=3400
       - GCA_PASSWORD=${GCA_PASSWORD:-}

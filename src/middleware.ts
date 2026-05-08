@@ -6,9 +6,7 @@ export async function authMiddleware(c: Context, next: Next) {
     return next();
   }
 
-  const token =
-    c.req.header('x-goog-api-key') ??
-    c.req.query('key');
+  const token = c.req.header('x-goog-api-key') ?? c.req.query('key');
 
   if (!token) {
     return c.json({ error: 'Missing API key' }, 401);

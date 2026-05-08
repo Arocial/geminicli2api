@@ -1,7 +1,14 @@
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { authMiddleware } from './middleware.js';
-import { analyzeTurn, getOrCreateSession, getOrCreateServer, listSessions, deleteSession, calculateHistoryHash } from './session.js';
+import {
+  analyzeTurn,
+  getOrCreateSession,
+  getOrCreateServer,
+  listSessions,
+  deleteSession,
+  calculateHistoryHash,
+} from './session.js';
 import { parseModelVariant, toGenerateContentParams } from './config.js';
 
 const routes = new Hono();
@@ -41,9 +48,14 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
 
     const historyHash = calculateHistoryHash(contents, true, identity);
     const newHistoryHash = calculateHistoryHash(contents, false, identity);
-    
-    const isTrackedSession = (requestSessionId !== undefined) || (newHistoryHash !== null);
-    const session = getOrCreateSession(requestSessionId || undefined, isTrackedSession, historyHash, newHistoryHash);
+
+    const isTrackedSession = requestSessionId !== undefined || newHistoryHash !== null;
+    const session = getOrCreateSession(
+      requestSessionId || undefined,
+      isTrackedSession,
+      historyHash,
+      newHistoryHash,
+    );
     const sessionId = session.id;
     const server = getOrCreateServer(session, baseModel);
 
@@ -51,7 +63,9 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
 
     const userPromptId = `${sessionId}########${turn}`;
 
-    console.log(`[${action}] baseModel=${baseModel} useSearch=${useSearch} thinkingBudget=${thinkingBudget} session=${sessionId}${isTrackedSession ? ' (tracked)' : ' (stealth)'}`);
+    console.log(
+      `[${action}] baseModel=${baseModel} useSearch=${useSearch} thinkingBudget=${thinkingBudget} session=${sessionId}${isTrackedSession ? ' (tracked)' : ' (stealth)'}`,
+    );
 
     const clientSignal = c.req.raw.signal;
 
@@ -82,14 +96,13 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
             return;
           }
           console.error(`[${action}] stream error:`, err);
-          const code = err?.code === 'ECONNRESET' ? 502
-            : err?.code === 'ETIMEDOUT' ? 504
-            : 500;
+          const code = err?.code === 'ECONNRESET' ? 502 : err?.code === 'ETIMEDOUT' ? 504 : 500;
           const errorEvent = {
             error: {
               code,
               message: `Upstream connection error: ${err?.code || err?.message || 'unknown'}`,
-              status: code === 502 ? 'BAD_GATEWAY' : code === 504 ? 'DEADLINE_EXCEEDED' : 'INTERNAL',
+              status:
+                code === 502 ? 'BAD_GATEWAY' : code === 504 ? 'DEADLINE_EXCEEDED' : 'INTERNAL',
             },
           };
           try {
@@ -100,7 +113,11 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
         }
       });
     } else if (action === 'generateContent') {
-      const { status, body: responseBody } = await server.requestRaw(params as never, userPromptId, clientSignal);
+      const { status, body: responseBody } = await server.requestRaw(
+        params as never,
+        userPromptId,
+        clientSignal,
+      );
 
       if (requestSessionId !== undefined) {
         c.header('X-Session-Id', sessionId);

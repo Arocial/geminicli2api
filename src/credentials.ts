@@ -8,7 +8,10 @@ import {
   UserAccountManager,
 } from '@google/gemini-cli-core';
 import { ProxyCodeAssistServer } from './proxy-server.js';
-import type { UserTierId, GeminiUserTier } from '@google/gemini-cli-core/dist/src/code_assist/types.js';
+import type {
+  UserTierId,
+  GeminiUserTier,
+} from '@google/gemini-cli-core/dist/src/code_assist/types.js';
 
 const require = createRequire(import.meta.url);
 const { version: DEFAULT_CLI_VERSION } = require('@google/gemini-cli-core/package.json');
