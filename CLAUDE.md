@@ -36,7 +36,8 @@ npm start         # Run compiled output
 
 - Each session gets its own `CodeAssistServer` instance (the sessionId is baked into the constructor)
 - `credentials.ts` exposes `getAuthClient()`, `getProjectId()`, `getUserTier()`, `getUserTierName()`, `getPaidTier()`, `buildHttpOptions()` so `session.ts` can create session-scoped servers
-- Without `X-Session-Id` header, requests use a shared stateless server (backward compatible)
+- Without `X-Session-Id` header, the server falls back to matching by a SHA-256 hash of prior user-text messages (scoped by the `Authorization` header to avoid cross-client collisions); only contents with no user-text fall through to a stateless shared server
+- Hash-matched sessions do NOT echo `X-Session-Id` back to the client — the header is only echoed when the client explicitly supplied one
 - Default thinking budget is 8192 tokens
 
 ## Common Patterns

@@ -39,9 +39,10 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
 
     // Session support: use X-Session-Id header to maintain conversation context
     const requestSessionId = c.req.header('X-Session-Id');
-    
-    const historyHash = calculateHistoryHash(contents, true);
-    const newHistoryHash = calculateHistoryHash(contents, false);
+    const identity = c.req.header('Authorization') || '';
+
+    const historyHash = calculateHistoryHash(contents, true, identity);
+    const newHistoryHash = calculateHistoryHash(contents, false, identity);
     
     let sessionId: string;
     let isTrackedSession = false;
@@ -107,7 +108,7 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
     } else if (action === 'generateContent') {
       const { status, body: responseBody } = await server.requestRaw(params as never, userPromptId, clientSignal);
 
-      if (isTrackedSession) {
+      if (requestSessionId !== undefined) {
         c.header('X-Session-Id', sessionId);
       }
 

@@ -33,9 +33,9 @@ setInterval(() => {
   }
 }, CLEANUP_INTERVAL_MS);
 
-export function calculateHistoryHash(contents: any[], excludeLast: boolean): string | null {
+export function calculateHistoryHash(contents: any[], excludeLast: boolean, identity: string): string | null {
   if (!contents || !Array.isArray(contents)) return null;
-  
+
   const userTexts: string[] = [];
   for (const msg of contents) {
     if (msg.role === 'user' && Array.isArray(msg.parts)) {
@@ -43,16 +43,16 @@ export function calculateHistoryHash(contents: any[], excludeLast: boolean): str
       userTexts.push(text);
     }
   }
-  
+
   if (excludeLast && userTexts.length > 0) {
     userTexts.pop();
   }
-  
+
   if (userTexts.length === 0) {
     return null;
   }
-  
-  const combined = userTexts.join('\n---\n');
+
+  const combined = identity + '\n###\n' + userTexts.join('\n---\n');
   return crypto.createHash('sha256').update(combined).digest('hex');
 }
 
