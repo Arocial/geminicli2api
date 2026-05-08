@@ -1,10 +1,8 @@
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { authMiddleware } from './middleware.js';
-import { createServer } from './credentials.js';
 import { analyzeTurn, getOrCreateSession, getOrCreateServer, listSessions, deleteSession, calculateHistoryHash } from './session.js';
 import { parseModelVariant, toGenerateContentParams } from './config.js';
-import crypto from 'node:crypto';
 
 const routes = new Hono();
 
@@ -44,14 +42,10 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
     const historyHash = calculateHistoryHash(contents, true, identity);
     const newHistoryHash = calculateHistoryHash(contents, false, identity);
     
-    let sessionId: string;
-    let isTrackedSession = false;
-    let server;
-
-    isTrackedSession = (requestSessionId !== undefined) || (newHistoryHash !== null);
+    const isTrackedSession = (requestSessionId !== undefined) || (newHistoryHash !== null);
     const session = getOrCreateSession(requestSessionId || undefined, isTrackedSession, historyHash, newHistoryHash);
-    sessionId = session.id;
-    server = getOrCreateServer(session, baseModel);
+    const sessionId = session.id;
+    const server = getOrCreateServer(session, baseModel);
 
     const { isUserTurn, turn } = analyzeTurn(contents, session);
 
@@ -64,7 +58,7 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
     if (isUserTurn) {
       try {
         await server.retrieveUserQuota({ project: (server as any).projectId } as never);
-      } catch (e) {
+      } catch {
         // ignore
       }
     }

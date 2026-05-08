@@ -15,7 +15,7 @@ serve({
     try {
       const res = await app.fetch(req, info);
       return res;
-    } catch (e) {
+    } catch {
       return new Response('internal error', { status: 500 });
     }
   },
