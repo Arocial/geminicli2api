@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { authMiddleware } from './middleware.js';
 import { createServer } from './credentials.js';
-import { analyzeTurn, getOrCreateSession, getOrCreateServer, listSessions, deleteSession } from './session.js';
+import { analyzeTurn, getOrCreateSession, getOrCreateServer, listSessions, deleteSession, calculateHistoryHash } from './session.js';
 import { parseModelVariant, toGenerateContentParams } from './config.js';
 import crypto from 'node:crypto';
 
@@ -39,12 +39,16 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
 
     // Session support: use X-Session-Id header to maintain conversation context
     const requestSessionId = c.req.header('X-Session-Id');
+    
+    const historyHash = calculateHistoryHash(contents, true);
+    const newHistoryHash = calculateHistoryHash(contents, false);
+    
     let sessionId: string;
     let isTrackedSession = false;
     let server;
 
-    isTrackedSession = (requestSessionId !== undefined);
-    const session = getOrCreateSession(requestSessionId || undefined, isTrackedSession);
+    isTrackedSession = (requestSessionId !== undefined) || (newHistoryHash !== null);
+    const session = getOrCreateSession(requestSessionId || undefined, isTrackedSession, historyHash, newHistoryHash);
     sessionId = session.id;
     server = getOrCreateServer(session, baseModel);
 
@@ -67,7 +71,7 @@ routes.post('/v1beta/models/*', authMiddleware, async (c) => {
     if (action === 'streamGenerateContent' || c.req.query('alt') === 'sse') {
       const { stream } = await server.streamRaw(params as never, userPromptId, clientSignal);
 
-      if (isTrackedSession) {
+      if (requestSessionId !== undefined) {
         c.header('X-Session-Id', sessionId);
       }
 

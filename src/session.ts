@@ -10,9 +10,11 @@ interface Session {
   servers: Map<string, ProxyCodeAssistServer>;
   lastUserMsgCnt: number;
   lastReportTurn: number;
+  historyHashes: Set<string>;
 }
 
 const sessions = new Map<string, Session>();
+const historyHashToSessionId = new Map<string, string>();
 
 const SESSION_TTL_MS = 30 * 60 * 1000; // 30 minutes
 const CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // cleanup every 5 minutes
@@ -20,26 +22,73 @@ const CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // cleanup every 5 minutes
 // Periodic cleanup of expired sessions
 setInterval(() => {
   const now = Date.now();
-  for (const [id, session] of sessions) {
+  for (const [key, session] of sessions) {
     if (now - session.lastUsedAt > SESSION_TTL_MS) {
-      sessions.delete(id);
-      console.log(`[session] expired: ${id}`);
+      for (const hash of session.historyHashes) {
+        historyHashToSessionId.delete(hash);
+      }
+      sessions.delete(key);
+      console.log(`[session] expired: ${key}`);
     }
   }
 }, CLEANUP_INTERVAL_MS);
 
+export function calculateHistoryHash(contents: any[], excludeLast: boolean): string | null {
+  if (!contents || !Array.isArray(contents)) return null;
+  
+  const userTexts: string[] = [];
+  for (const msg of contents) {
+    if (msg.role === 'user' && Array.isArray(msg.parts)) {
+      const text = msg.parts.map((p: any) => p.text || '').join('');
+      userTexts.push(text);
+    }
+  }
+  
+  if (excludeLast && userTexts.length > 0) {
+    userTexts.pop();
+  }
+  
+  if (userTexts.length === 0) {
+    return null;
+  }
+  
+  const combined = userTexts.join('\n---\n');
+  return crypto.createHash('sha256').update(combined).digest('hex');
+}
 
-export function getOrCreateSession(sessionId?: string, track?: boolean): Session {
+export function getOrCreateSession(
+  sessionId?: string, 
+  track?: boolean,
+  historyHash?: string | null,
+  newHistoryHash?: string | null
+): Session {
+  let resolvedSessionKey = sessionId;
+
+  // Fallback to history hash if no sessionId provided
+  if (!resolvedSessionKey && historyHash) {
+    const foundKey = historyHashToSessionId.get(historyHash);
+    if (foundKey && sessions.has(foundKey)) {
+      resolvedSessionKey = foundKey;
+      console.log(`[session] fallback matched hash: ${historyHash.substring(0, 8)} -> ${resolvedSessionKey}`);
+    }
+  }
+
   // Reuse existing session
-  if (sessionId && sessions.has(sessionId)) {
-    const session = sessions.get(sessionId)!;
+  if (resolvedSessionKey && sessions.has(resolvedSessionKey)) {
+    const session = sessions.get(resolvedSessionKey)!;
     session.lastUsedAt = Date.now();
-    console.log(`[session] reuse: ${sessionId}`);
+    
+    if (newHistoryHash) {
+      session.historyHashes.add(newHistoryHash);
+      historyHashToSessionId.set(newHistoryHash, resolvedSessionKey);
+    }
+    
+    console.log(`[session] reuse: ${resolvedSessionKey}`);
     return session;
   }
 
   // Create new session — always use UUID as the internal id
-  const key = sessionId || crypto.randomUUID();
+  const key = resolvedSessionKey || crypto.randomUUID();
   const id = crypto.randomUUID();
 
   const session: Session = {
@@ -49,7 +98,13 @@ export function getOrCreateSession(sessionId?: string, track?: boolean): Session
     servers: new Map(),
     lastUserMsgCnt: -1,
     lastReportTurn: -1,
+    historyHashes: new Set(),
   };
+
+  if (newHistoryHash) {
+    session.historyHashes.add(newHistoryHash);
+    historyHashToSessionId.set(newHistoryHash, key);
+  }
 
   if (track) {
     sessions.set(key, session);
@@ -82,6 +137,12 @@ export function listSessions(): { id: string; createdAt: number; lastUsedAt: num
 }
 
 export function deleteSession(sessionId: string): boolean {
+  const session = sessions.get(sessionId);
+  if (session) {
+    for (const hash of session.historyHashes) {
+      historyHashToSessionId.delete(hash);
+    }
+  }
   const deleted = sessions.delete(sessionId);
   if (deleted) {
     console.log(`[session] deleted: ${sessionId}`);
